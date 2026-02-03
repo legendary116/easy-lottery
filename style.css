@@ -230,17 +230,17 @@ body.fullscreen-open .award-panel {
 
 .award-selected-overlay {
     position: absolute;
-    inset: 16px;
+    inset: 0;
     border-radius: 16px;
-    background: rgba(8, 15, 30, 0.92);
-    border: 1px solid rgba(255, 214, 10, 0.35);
+    background: rgba(8, 15, 30, 0.95);
+    border: 1px solid rgba(255, 214, 10, 0.4);
     display: flex;
-    align-items: center;
-    justify-content: center;
+    flex-direction: column;
     opacity: 0;
     pointer-events: none;
     transform: translateY(10px);
     transition: all 0.3s ease;
+    padding: 0;
 }
 
 .award-panel.show-selected .award-selected-overlay {
@@ -250,47 +250,94 @@ body.fullscreen-open .award-panel {
 }
 
 .award-selected-card {
-    text-align: center;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
     color: #fff7d6;
 }
 
+.award-selected-header {
+    text-align: center;
+    padding: 16px 20px;
+    background: linear-gradient(90deg, rgba(255, 214, 10, 0.25) 0%, rgba(0, 212, 255, 0.18) 100%);
+    border-bottom: 1px solid rgba(255, 214, 10, 0.4);
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #ffd60a;
+    text-shadow: 0 0 12px rgba(255, 214, 10, 0.5), 0 0 24px rgba(255, 214, 10, 0.3);
+    letter-spacing: 2px;
+    flex-shrink: 0;
+}
+
+.award-selected-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.award-selected-image {
+    width: 100%;
+    flex: 1;
+    margin: 0;
+    border-radius: 0;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.award-selected-image img {
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    position: relative;
+    z-index: 2;
+}
+
 .award-selected-title {
-    font-size: 1.6rem;
-    font-weight: bold;
-    margin-bottom: 6px;
+    font-size: 1.5rem;
+    font-weight: 800;
+    padding: 10px 20px 6px;
+    text-align: center;
+    background: linear-gradient(135deg, #ffd60a 0%, #ff9500 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-shadow: 0 0 20px rgba(255, 214, 10, 0.4);
+    flex-shrink: 0;
 }
 
 .award-selected-prize {
-    font-size: 1.25rem;
+    font-size: 1.3rem;
+    font-weight: 700;
     color: #ffd60a;
-    margin-bottom: 10px;
+    padding: 6px 20px 12px;
+    text-align: center;
+    text-shadow: 0 0 10px rgba(255, 214, 10, 0.3);
+    letter-spacing: 1px;
+    flex-shrink: 0;
 }
 
 .award-selected-meta {
     display: flex;
-    gap: 10px;
+    gap: 20px;
     justify-content: center;
     font-size: 1rem;
+    padding: 12px 20px 16px;
+    border-top: 1px solid rgba(0, 212, 255, 0.2);
+    background: rgba(0, 212, 255, 0.08);
+    flex-shrink: 0;
 }
 
 .award-selected-meta span {
-    margin: 0 4px;
-}
-
-.award-selected-image {
-    width: 80px;
-    height: 80px;
-    margin: 0 auto 10px;
-    border-radius: 18px;
-    overflow: hidden;
-    border: 1px solid rgba(255, 214, 10, 0.5);
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.25);
-}
-
-.award-selected-image img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
+    margin: 0 3px;
+    font-weight: 600;
 }
 
 .lottery-award-preview {
@@ -617,6 +664,70 @@ body.fullscreen-open .tab-content {
     padding: 0;
 }
 
+body.fullscreen-open .winner-overlay {
+    z-index: 100;
+}
+
+body.fullscreen-open .winner-overlay-backdrop {
+    background: rgba(0, 0, 0, 0.92);
+    backdrop-filter: blur(12px);
+}
+
+body.fullscreen-open .winner-overlay-title {
+    font-size: 6rem;
+    letter-spacing: 12px;
+}
+
+body.fullscreen-open .winner-overlay-award-name {
+    font-size: 3.5rem;
+}
+
+body.fullscreen-open .winner-overlay-award-prize {
+    font-size: 2.5rem;
+}
+
+body.fullscreen-open .winner-overlay .winner-popups {
+    max-width: 1800px;
+    gap: 20px;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+body.fullscreen-open .winner-card {
+    min-width: 160px;
+    max-width: 240px;
+    padding: 18px 20px;
+}
+
+body.fullscreen-open .winner-card .winner-name {
+    font-size: 1.6rem;
+}
+
+body.fullscreen-open .winner-card .winner-number {
+    font-size: 1.1rem;
+}
+
+body.fullscreen-open .winner-overlay-close {
+    width: 60px;
+    height: 60px;
+    font-size: 1.8rem;
+}
+
+body.fullscreen-open .winner-overlay-content {
+    padding: 60px 40px;
+}
+
+body.fullscreen-open .winner-overlay-content::-webkit-scrollbar {
+    width: 10px;
+}
+
+body.fullscreen-open .winner-overlay-content::-webkit-scrollbar-thumb {
+    background: rgba(255, 214, 10, 0.6);
+}
+
+body.fullscreen-open .winner-overlay-content::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 214, 10, 0.8);
+}
+
 .drawer-toggle {
     position: fixed;
     left: 0;
@@ -735,6 +846,163 @@ body.drawer-open .drawer-backdrop {
     overflow: auto;
     position: relative;
     z-index: 1;
+}
+
+.result-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.result-empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 1rem;
+}
+
+.result-card {
+    background: linear-gradient(135deg, rgba(15, 25, 50, 0.95) 0%, rgba(25, 45, 80, 0.9) 100%);
+    border: 1px solid rgba(0, 212, 255, 0.3);
+    border-radius: 16px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+
+.result-card:hover {
+    transform: translateX(4px);
+    border-color: rgba(0, 212, 255, 0.6);
+    box-shadow: 0 6px 24px rgba(0, 212, 255, 0.3);
+}
+
+.result-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: linear-gradient(90deg, rgba(0, 212, 255, 0.15) 0%, rgba(255, 214, 10, 0.1) 100%);
+    border-bottom: 1px solid rgba(0, 212, 255, 0.2);
+}
+
+.result-card-award-title {
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: #ffd60a;
+    text-shadow: 0 0 8px rgba(255, 214, 10, 0.5);
+}
+
+.result-card-time {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.result-card-body {
+    padding: 14px 16px;
+}
+
+.result-winners-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.result-winner-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    background: rgba(0, 212, 255, 0.06);
+    border-radius: 12px;
+    border: 1px solid rgba(0, 212, 255, 0.1);
+    transition: all 0.2s ease;
+}
+
+.result-winner-item:hover {
+    background: rgba(0, 212, 255, 0.12);
+    border-color: rgba(0, 212, 255, 0.25);
+    transform: translateX(4px);
+}
+
+.result-winner-number {
+    font-size: 1.4rem;
+    font-weight: bold;
+    color: #00d4ff;
+    text-shadow: 0 0 8px rgba(0, 212, 255, 0.4);
+    min-width: 50px;
+}
+
+.result-winner-name {
+    flex: 1;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #ffffff;
+}
+
+.result-winner-type {
+    padding: 4px 8px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+}
+
+.result-winner-type.boss {
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.3) 0%, rgba(255, 165, 0, 0.25) 100%);
+    color: #ffd700;
+    border: 1px solid rgba(255, 215, 0, 0.5);
+}
+
+.result-winner-type.user {
+    background: rgba(0, 212, 255, 0.15);
+    color: #00d4ff;
+    border: 1px solid rgba(0, 212, 255, 0.3);
+}
+
+.result-card-footer {
+    display: flex;
+    gap: 1px;
+    background: rgba(0, 212, 255, 0.08);
+    border-top: 1px solid rgba(0, 212, 255, 0.15);
+}
+
+.result-card-prize,
+.result-card-count {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px;
+    font-size: 0.95rem;
+    color: #c7e9ff;
+}
+
+.result-card-prize i,
+.result-card-count i {
+    font-size: 1.1rem;
+    color: #00d4ff;
+}
+
+.result-card-prize {
+    background: rgba(255, 214, 10, 0.08);
+}
+
+.result-card-prize span {
+    color: #ffd60a;
+    font-weight: 600;
+}
+
+.result-card-count {
+    background: rgba(0, 212, 255, 0.08);
+}
+
+.result-card-count span {
+    font-weight: 600;
 }
 
 .drawer-body .table {
@@ -995,42 +1263,217 @@ body.fullscreen-open .inline-result-section {
     pointer-events: none;
 }
 
+.winner-overlay {
+    position: absolute;
+    inset: 0;
+    display: none;
+    z-index: 150;
+    pointer-events: none;
+}
+
+body.winner-show .winner-overlay {
+    display: block;
+    pointer-events: auto;
+}
+
+.winner-overlay-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(8px);
+    z-index: 1;
+}
+
+.winner-overlay-close {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 10;
+    transition: all 0.3s ease;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 1.5rem;
+}
+
+.winner-overlay-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.5);
+    color: #fff;
+    transform: scale(1.1);
+}
+
+.winner-overlay-close:active {
+    transform: scale(0.95);
+}
+
+.winner-overlay-content {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    height: 100%;
+    padding: 40px 20px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 214, 10, 0.5) rgba(0, 0, 0, 0.3);
+}
+
+.winner-overlay-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.winner-overlay-content::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+}
+
+.winner-overlay-content::-webkit-scrollbar-thumb {
+    background: rgba(255, 214, 10, 0.5);
+    border-radius: 4px;
+}
+
+.winner-overlay-content::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 214, 10, 0.7);
+}
+
+.winner-overlay-title {
+    font-size: 4rem;
+    font-weight: 900;
+    color: #ffd60a;
+    text-shadow: 
+        0 0 20px rgba(255, 214, 10, 0.8),
+        0 0 40px rgba(255, 214, 10, 0.6),
+        0 0 60px rgba(255, 214, 10, 0.4),
+        0 4px 8px rgba(0, 0, 0, 0.5);
+    margin-bottom: 30px;
+    letter-spacing: 8px;
+    opacity: 0;
+    transform: translateY(-30px);
+    animation: winnerTitleFadeIn 0.8s ease forwards;
+}
+
+.winner-overlay-award {
+    text-align: center;
+    margin-bottom: 40px;
+    opacity: 0;
+    transform: translateY(-20px);
+    animation: winnerAwardFadeIn 0.8s ease 0.3s forwards;
+}
+
+.winner-overlay-award-name {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #fff7d6;
+    text-shadow: 
+        0 0 15px rgba(255, 247, 214, 0.6),
+        0 2px 4px rgba(0, 0, 0, 0.5);
+    margin-bottom: 10px;
+}
+
+.winner-overlay-award-prize {
+    font-size: 1.8rem;
+    font-weight: 500;
+    color: #00d4ff;
+    text-shadow: 
+        0 0 10px rgba(0, 212, 255, 0.6),
+        0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.winner-overlay .winner-popups {
+    position: relative;
+    inset: auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 20px;
+    max-width: 1200px;
+    width: 100%;
+    padding: 0;
+    z-index: 3;
+    pointer-events: none;
+    margin-top: 20px;
+}
+
+@keyframes winnerTitleFadeIn {
+    0% {
+        opacity: 0;
+        transform: translateY(-30px) scale(0.9);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes winnerAwardFadeIn {
+    0% {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 .winner-card {
-    min-width: 160px;
-    max-width: 240px;
-    padding: 14px 16px;
-    border-radius: 14px;
-    background: radial-gradient(circle at top, rgba(255, 214, 10, 0.3), rgba(15, 20, 35, 0.92));
-    border: 2px solid rgba(255, 214, 10, 0.5);
+    min-width: 180px;
+    max-width: 280px;
+    padding: 20px 24px;
+    border-radius: 16px;
+    background: radial-gradient(circle at top, rgba(255, 214, 10, 0.35), rgba(15, 20, 35, 0.95));
+    border: 2px solid rgba(255, 214, 10, 0.6);
     box-shadow:
-        0 0 40px rgba(255, 214, 10, 0.5),
-        0 0 80px rgba(0, 0, 0, 0.55);
+        0 0 50px rgba(255, 214, 10, 0.6),
+        0 0 100px rgba(0, 0, 0, 0.6);
     text-align: center;
     color: #fff7d6;
     opacity: 0;
-    transform: translateX(-40px);
+    transform: translateX(-60px) scale(0.9);
 }
 
 .winner-card.winner-slide {
     animation:
-        winnerSlideIn var(--winner-multi-duration, 2s) ease forwards,
+        winnerCardSlideIn var(--winner-multi-duration, 2s) ease forwards,
         winnerCardGlow 1.8s ease-in-out var(--winner-multi-duration, 2s) infinite alternate;
 }
 
 .winner-card .winner-name {
-    font-size: 1.4rem;
+    font-size: 1.8rem;
     font-weight: bold;
-    margin-bottom: 4px;
+    margin-bottom: 6px;
     color: #00d4ff;
+    text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
 }
 
 .winner-card .winner-number {
-    font-size: 1rem;
-    color: rgba(255, 255, 255, 0.85);
+    font-size: 1.2rem;
+    color: rgba(255, 255, 255, 0.9);
 }
 
 .winner-card.boss-name .winner-name {
     color: #ffd700;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.6);
+}
+
+@keyframes winnerCardSlideIn {
+    0% {
+        transform: translateX(-60px) scale(0.9);
+        opacity: 0;
+    }
+    100% {
+        transform: translateX(0) scale(1);
+        opacity: 1;
+    }
 }
 
 body.multi-winner .lottery-info {
@@ -1090,6 +1533,12 @@ body.lottery-running .lottery-number {
 }
 
 body.lottery-running .lottery-info {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+body.winner-show .lottery-info {
     opacity: 0;
     visibility: hidden;
     pointer-events: none;

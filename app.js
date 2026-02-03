@@ -84,7 +84,6 @@ function applyI18n() {
     }
 
     updateFullscreenState();
-    updateLotteryStatusText();
     updateTables();
     renderAwards();
     updateStatsPage();
@@ -95,22 +94,6 @@ function applyWinnerAnimationSettings() {
     root.style.setProperty('--winner-reveal-duration', `${winnerRevealDuration}s`);
     root.style.setProperty('--winner-multi-duration', `${winnerRevealDuration}s`);
     root.style.setProperty('--winner-multi-delay', `${winnerMultiDelay}s`);
-}
-
-function updateLotteryStatusText() {
-    if (isLotteryRunning) {
-        return;
-    }
-    if (currentLottery) {
-        $('#lotteryNumber').text(currentLottery.number);
-        $('#lotteryName').text(currentLottery.name);
-        return;
-    }
-    $('#lotteryNumber').text('000');
-    $('#lotteryName').text(t('lottery_ready'));
-    $('#winnerPopups').empty();
-    $('body').removeClass('multi-winner');
-    $('#lotteryName').removeClass('boss-name');
 }
 
 // 初始化
@@ -292,6 +275,18 @@ $(document).ready(function() {
         applyI18n();
     });
 
+    $('#exportWinnersBtn').on('click', function() {
+        exportWinnersToExcel();
+    });
+
+    $('#winnerOverlayClose').on('click', function() {
+        $('body').removeClass('winner-show');
+    });
+
+    $('#winnerOverlayBackdrop').on('click', function() {
+        $('body').removeClass('winner-show');
+    });
+
     applyI18n();
     applyWinnerAnimationSettings();
 });
@@ -371,8 +366,73 @@ function updateUserTable() {
 
 // 更新结果表格
 function updateResultTable() {
-    const renderTable = (tbody) => {
-        tbody.empty();
+    const renderCards = (container) => {
+        container.empty();
+        
+        if (winners.length === 0) {
+            container.append(`<div class="result-empty">${t('no_results')}</div>`);
+            return;
+        }
+        
+        const groupedByDraw = {};
+        winners.forEach((winner) => {
+            if (!groupedByDraw[winner.drawId]) {
+                groupedByDraw[winner.drawId] = [];
+            }
+            groupedByDraw[winner.drawId].push(winner);
+        });
+        
+        const drawIds = Object.keys(groupedByDraw).reverse();
+        
+        drawIds.forEach((drawId, drawIndex) => {
+            const drawWinners = groupedByDraw[drawId];
+            const firstWinner = drawWinners[0];
+            const card = $(`
+                <div class="result-card">
+                    <div class="result-card-header">
+                        <span class="result-card-award-title">${firstWinner.awardName || '-'}</span>
+                        <span class="result-card-time">${firstWinner.winTime || '-'}</span>
+                    </div>
+                    <div class="result-card-body">
+                        <div class="result-winners-list">
+                            ${drawWinners.map((winner, index) => `
+                                <div class="result-winner-item">
+                                    <span class="result-winner-number">${winner.number}</span>
+                                    <span class="result-winner-name">
+                                        ${winner.name}
+                                        ${winner.type === 'boss' && bossKeepInPool ? `<span class="badge badge-boss-win">${t('boss_win_note')}</span>` : ''}
+                                    </span>
+                                    <span class="result-winner-type ${winner.type === 'boss' ? 'boss' : 'user'}">
+                                        ${winner.type === 'boss' ? `<i class="fa fa-star"></i>` : ''}
+                                    </span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    <div class="result-card-footer">
+                        <div class="result-card-prize">
+                            <i class="fa fa-trophy"></i>
+                            <span>${firstWinner.awardPrize || '-'}</span>
+                        </div>
+                        <div class="result-card-count">
+                            <i class="fa fa-users"></i>
+                            <span>${drawWinners.length}</span>
+                        </div>
+                    </div>
+                </div>
+            `);
+            container.append(card);
+        });
+    };
+
+    const drawerCards = $('#resultCards');
+    if (drawerCards.length) {
+        renderCards(drawerCards);
+    }
+
+    const inlineBody = $('#resultTableInline');
+    if (inlineBody.length) {
+        inlineBody.empty();
         winners.forEach((winner, index) => {
             const tr = $('<tr></tr>');
             tr.append($('<td></td>').text(index + 1));
@@ -389,22 +449,9 @@ function updateResultTable() {
             tr.append($('<td></td>').append(typeBadge));
             tr.append($('<td></td>').text(winner.awardName || '-'));
             tr.append($('<td></td>').text(winner.awardPrize || '-'));
-
-            // 添加中奖时间
             tr.append($('<td></td>').text(winner.winTime || '-'));
-
-            tbody.append(tr);
+            inlineBody.append(tr);
         });
-    };
-
-    const drawerBody = $('#resultTable');
-    if (drawerBody.length) {
-        renderTable(drawerBody);
-    }
-
-    const inlineBody = $('#resultTableInline');
-    if (inlineBody.length) {
-        renderTable(inlineBody);
     }
 
     $('#resultCount').text(winners.length);
@@ -415,7 +462,6 @@ function updateResultTable() {
 function updateStats() {
     const remainingUsers = users.filter(user => {
         const isWinner = winners.some(winner => winner.id === user.id);
-        // 如果开启老板留池，老板即使中奖也不移除
         if (bossKeepInPool && user.type === 'boss') {
             return true;
         }
@@ -426,18 +472,19 @@ function updateStats() {
     $('#winnerCount').text(winners.length);
     $('#bossCount').text(users.filter(u => u.type === 'boss').length);
     $('#userCount').text(users.filter(u => u.type === 'user').length);
+    
+    const totalWinners = winners.length;
+    const bossWins = winners.filter(w => w.type === 'boss').length;
+    $('#statsTotalWinners').text(totalWinners);
+    $('#statsTotalAwards').text(awards.length);
+    $('#statsBossWins').text(bossWins);
+    
     updateStatsPage();
 }
 
 function updateStatsPage() {
     const statsTotalWinners = $('#statsTotalWinners');
     if (!statsTotalWinners.length) return;
-
-    const totalWinners = winners.length;
-    const bossWins = winners.filter(w => w.type === 'boss').length;
-    statsTotalWinners.text(totalWinners);
-    $('#statsTotalAwards').text(awards.length);
-    $('#statsBossWins').text(bossWins);
 
     const awardTable = $('#statsAwardTable');
     awardTable.empty();
@@ -474,6 +521,47 @@ function updateStatsPage() {
         tr.append($('<td></td>').text(winner.winTime || '-'));
         winnerTable.append(tr);
     });
+}
+
+function exportWinnersToExcel() {
+    if (winners.length === 0) {
+        alert(t('no_winners_to_export'));
+        return;
+    }
+
+    const headers = [
+        t('table_index'),
+        t('table_name'),
+        t('table_number'),
+        t('table_type'),
+        t('table_award'),
+        t('table_prize'),
+        t('table_time')
+    ];
+
+    const data = winners.map((winner, index) => {
+        const typeLabel = winner.type === 'boss' ? t('type_boss') : t('type_user');
+        return [
+            index + 1,
+            winner.name,
+            winner.number,
+            typeLabel,
+            winner.awardName || '-',
+            winner.awardPrize || '-',
+            winner.winTime || '-'
+        ];
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, t('stats_winner_list'));
+
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
+    const fileName = `中奖明细_${dateStr}_${timeStr}.xlsx`;
+
+    XLSX.writeFile(wb, fileName);
 }
 
 // 更新名字墙 - 已移除，改用3D球体显示
@@ -1447,13 +1535,16 @@ function startLottery() {
     isLotteryRunning = true;
     currentDrawAwardId = selectedAward.id;
     currentLottery = null;
+    
+    $('#ongoingMusic')[0].currentTime = 0;
+    $('#ongoingMusic')[0].play().catch(err => console.log('播放ongoing音乐失败:', err));
+    
     $('#startBtn').prop('disabled', true);
     $('body').addClass('lottery-running');
     $('body').removeClass('winner-reveal');
     $('body').removeClass('multi-winner');
+    $('body').removeClass('winner-show');
     $('#winnerPopups').empty();
-    $('#lotteryNumber').text('');
-    $('#lotteryName').text('');
 
     // 创建地球旋转效果
     createGlobeEffect(remainingUsers);
@@ -1550,36 +1641,29 @@ function stopLottery() {
 
     const popups = $('#winnerPopups');
     popups.empty();
-    if (pickedUsers.length === 1) {
-        $('body').removeClass('multi-winner');
-        $('#lotteryNumber').text(pickedUsers[0].number);
-        $('#lotteryName').text(pickedUsers[0].name);
-        $('#lotteryName').toggleClass('boss-name', pickedUsers[0].type === 'boss');
-        $('body').addClass('winner-reveal');
-        const info = $('.lottery-info');
-        info.removeClass('winner-pop winner-slide');
-        if (info.length) {
-            void info[0].offsetWidth;
-        }
-        info.addClass('winner-slide');
-    } else {
-        $('body').addClass('multi-winner').removeClass('winner-reveal');
-        $('#lotteryNumber').text('');
-        $('#lotteryName').text('');
-        $('#lotteryName').removeClass('boss-name');
-        pickedUsers.forEach((winner, index) => {
-            const delay = (index * winnerMultiDelay).toFixed(2);
-            popups.append(`
-                <div class="winner-card winner-slide ${winner.type === 'boss' ? 'boss-name' : ''}" style="animation-delay:${delay}s;">
-                    <div class="winner-name">${winner.name}</div>
-                    <div class="winner-number">${winner.number}</div>
-                </div>
-            `);
-        });
-    }
+    
+    $('body').removeClass('multi-winner').removeClass('winner-reveal').addClass('winner-show');
+    
+    $('#winnerAwardName').text(drawAward.name || '-');
+    $('#winnerAwardPrize').text(drawAward.prize || '-');
+    
+    pickedUsers.forEach((winner, index) => {
+        const delay = (index * winnerMultiDelay).toFixed(2);
+        popups.append(`
+            <div class="winner-card winner-slide ${winner.type === 'boss' ? 'boss-name' : ''}" style="animation-delay:${delay}s;">
+                <div class="winner-name">${winner.name}</div>
+                <div class="winner-number">${winner.number}</div>
+            </div>
+        `);
+    });
 
     lastDraw = { drawId, awardId: drawAward.id, count: pickedUsers.length };
     $('#undoBtn').prop('disabled', false);
+
+    $('#ongoingMusic')[0].pause();
+    $('#ongoingMusic')[0].currentTime = 0;
+    $('#celebrateMusic')[0].currentTime = 0;
+    $('#celebrateMusic')[0].play().catch(err => console.log('播放celebrate音乐失败:', err));
 
     // 中奖后不再弹出右上角提示
 
@@ -1617,13 +1701,16 @@ function undoLastDraw() {
     }
     lastDraw = null;
     $('#undoBtn').prop('disabled', true);
+    
+    $('#celebrateMusic')[0].pause();
+    $('#celebrateMusic')[0].currentTime = 0;
+    
     saveData();
     updateResultTable();
     updateStats();
     renderAwards();
     updateStatsPage();
     currentLottery = null;
-    updateLotteryStatusText();
     showAlert(t('undo_success'), 'success');
 }
 
@@ -1644,14 +1731,19 @@ function resetLottery() {
             remaining: award.total
         }));
         autoRotate = true;
+        $('body').removeClass('winner-show');
+        
+        $('#ongoingMusic')[0].pause();
+        $('#ongoingMusic')[0].currentTime = 0;
+        $('#celebrateMusic')[0].pause();
+        $('#celebrateMusic')[0].currentTime = 0;
+        
         saveData();
         updateResultTable();
         updateStats();
         renderAwards();
         updateStatsPage();
         createGlobe();
-        $('#lotteryNumber').text('000');
-        $('#lotteryName').text(t('lottery_ready'));
         showAlert(t('reset_success'), 'success');
     }
 }
@@ -1672,14 +1764,19 @@ function clearData() {
         lastDraw = null;
         $('#undoBtn').prop('disabled', true);
         autoRotate = true;
+        $('body').removeClass('winner-show');
+        
+        $('#ongoingMusic')[0].pause();
+        $('#ongoingMusic')[0].currentTime = 0;
+        $('#celebrateMusic')[0].pause();
+        $('#celebrateMusic')[0].currentTime = 0;
+        
         saveData();
         updateTables();
         updateStats();
         renderAwards();
         updateStatsPage();
         createGlobe();
-        $('#lotteryNumber').text('000');
-        $('#lotteryName').text(t('lottery_ready'));
         showAlert(t('clear_success'), 'success');
     }
 }

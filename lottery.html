@@ -12,6 +12,8 @@
 </head>
 <body>
     <div class="alert-container" id="alertContainer"></div>
+    <audio id="ongoingMusic" src="music/ongoing.mp3" preload="auto"></audio>
+    <audio id="celebrateMusic" src="music/celebrate.mp3" preload="auto"></audio>
     <div class="container mt-5">
         <div class="card">
             <div class="card-header">
@@ -65,22 +67,7 @@
                                     </button>
                                 </div>
                                 <div class="drawer-body">
-                                    <div class="table-container">
-                                        <table class="table table-striped table-hover">
-                                            <thead>
-                                                <tr>
-                                                    <th data-i18n="table_index">序号</th>
-                                                    <th data-i18n="table_name">姓名</th>
-                                                    <th data-i18n="table_number">号码</th>
-                                                    <th data-i18n="table_type">类型</th>
-                                                    <th data-i18n="table_award">奖项</th>
-                                                    <th data-i18n="table_prize">奖品</th>
-                                                    <th data-i18n="table_time">中奖时间</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody id="resultTable"></tbody>
-                                        </table>
-                                    </div>
+                                    <div class="result-cards" id="resultCards"></div>
                                 </div>
                             </aside>
 
@@ -92,32 +79,41 @@
                                     <div class="globe-container" id="globeContainer">
                                         <!-- 3D球体效果 -->
                                     </div>
-                                    <div class="lottery-info">
-                                        <div class="lottery-award-preview">
-                                            <img id="currentAwardImage" src="images/gift.jpg" alt="">
+                                    <div class="winner-overlay" id="winnerOverlay">
+                                        <div class="winner-overlay-backdrop" id="winnerOverlayBackdrop"></div>
+                                        <div class="winner-overlay-content">
+                                            <div class="winner-overlay-close" id="winnerOverlayClose">
+                                                <i class="fa fa-times"></i>
+                                            </div>
+                                            <div class="winner-overlay-title" data-i18n="congratulations">恭喜中奖</div>
+                                            <div class="winner-overlay-award">
+                                                <div class="winner-overlay-award-name" id="winnerAwardName">-</div>
+                                                <div class="winner-overlay-award-prize" id="winnerAwardPrize">-</div>
+                                            </div>
+                                            <div class="winner-popups" id="winnerPopups"></div>
                                         </div>
-                                        <div class="lottery-number" id="lotteryNumber">000</div>
-                                        <div class="lottery-name" id="lotteryName" data-i18n="lottery_ready">准备抽奖</div>
                                     </div>
-                                    <div class="winner-popups" id="winnerPopups"></div>
                                 </div>
                                     </div>
                                     <div class="lottery-right">
                                         <div class="award-panel" id="awardPanel">
                                             <div class="award-panel-header">
                                                 <h5><i class="fa fa-gift" aria-hidden="true"></i> <span data-i18n="award_panel_title">切换奖项</span></h5>
-                                                <p class="text-sm text-muted" data-i18n="award_panel_tip">请选择奖项后开始抽�?/p>
+                                                <p class="text-sm text-muted" data-i18n="award_panel_tip">请选择奖项后开始抽奖</p>
                                             </div>
                                             <div class="award-list" id="awardList"></div>
                                             <div class="award-selected-overlay" id="awardSelectedOverlay">
                                                 <div class="award-selected-card">
+                                                    <div class="award-selected-header">
+                                                        <span data-i18n="current_award">当前奖项</span>
+                                                    </div>
                                                     <div class="award-selected-image">
                                                         <img id="selectedAwardImage" src="images/gift.jpg" alt="">
                                                     </div>
                                                     <div class="award-selected-title" id="selectedAwardName">-</div>
                                                     <div class="award-selected-prize" id="selectedAwardPrize">-</div>
                                                     <div class="award-selected-meta">
-                                                        <span data-i18n="award_per_draw">单次抽�?/span> <span id="selectedAwardPerDraw">0</span>
+                                                        <span data-i18n="award_per_draw">单次抽选用户数量</span> <span id="selectedAwardPerDraw">0</span>
                                                         <span data-i18n="award_remaining">剩余</span> <span id="selectedAwardRemaining">0</span>
                                                     </div>
                                                 </div>
@@ -128,7 +124,7 @@
 
                                 <div class="lottery-controls text-center">
                                     <button type="button" class="lottery-btn btn btn-primary" id="startBtn">
-                                        <i class="fa fa-play" aria-hidden="true"></i> <span data-i18n="start_draw">开始抽�?/span>
+                                        <i class="fa fa-play" aria-hidden="true"></i> <span data-i18n="start_draw">开始抽奖</span>
                                     </button>
                                     <button type="button" class="lottery-btn btn btn-success" id="stopBtn" disabled>
                                         <i class="fa fa-stop" aria-hidden="true"></i> <span data-i18n="stop_draw">停止抽奖</span>
@@ -137,7 +133,7 @@
                                         <i class="fa fa-refresh" aria-hidden="true"></i> <span data-i18n="reset_draw">重置抽奖</span>
                                     </button>
                                     <button type="button" class="lottery-btn btn btn-secondary" id="undoBtn">
-                                        <i class="fa fa-undo" aria-hidden="true"></i> <span data-i18n="undo_draw">撤销上一�?/span>
+                                        <i class="fa fa-undo" aria-hidden="true"></i> <span data-i18n="undo_draw">撤销上一次</span>
                                     </button>
                                     <button type="button" class="lottery-btn btn btn-warning" id="fullscreenToggle">
                                         <i class="fa fa-arrows-alt" aria-hidden="true"></i> <span data-i18n="fullscreen_enter">全屏展示</span>
@@ -210,7 +206,7 @@
                             <div class="col-md-6">
                                 <h5><i class="fa fa-list" aria-hidden="true"></i> <span data-i18n="manage_user_list">人员列表</span></h5>
                                 <div class="mb-2">
-                                    <input type="text" class="form-control" id="userSearchInput" placeholder="��������/����" data-i18n-placeholder="search_user_placeholder">
+                                    <input type="text" class="form-control" id="userSearchInput" placeholder="搜索姓名/号码" data-i18n-placeholder="search_user_placeholder">
                                 </div>
                                 <div class="table-container">
                                     <table class="table table-striped table-hover">
@@ -250,7 +246,7 @@
                                                 <input type="number" class="form-control" id="awardTotal" min="1" required>
                                             </div>
                                             <div class="col-md-6 mb-2">
-                                                <label class="form-label" for="awardPerDraw" data-i18n="award_per_draw">单次抽选用户数�?/label>
+                                                <label class="form-label" for="awardPerDraw" data-i18n="award_per_draw">单次抽选用户数量</label>
                                                 <input type="number" class="form-control" id="awardPerDraw" min="1" required>
                                             </div>
                                             <div class="col-md-6 mb-2">
@@ -289,12 +285,9 @@
                             <div class="col-lg-4 mb-3">
                                 <div class="alert alert-info">
                                     <h5><i class="fa fa-line-chart" aria-hidden="true"></i> <span data-i18n="stats_overview">统计概览</span></h5>
-                                    <p><span data-i18n="stats_total_winners">总中奖人�?/span>: <span id="statsTotalWinners">0</span></p>
+                                    <p><span data-i18n="stats_total_winners">总中奖人数</span>: <span id="statsTotalWinners">0</span></p>
                                     <p><span data-i18n="stats_total_awards">总奖项数</span>: <span id="statsTotalAwards">0</span></p>
                                     <p><span data-i18n="stats_boss_wins">老板中奖次数</span>: <span id="statsBossWins">0</span></p>
-                                </div>
-                                <div class="alert alert-info">
-                                    <h5><i class="fa fa-info-circle" aria-hidden="true"></i> <span data-i18n="system_info">系统信息</span></h5>
                                     <p><span data-i18n="remaining_count">当前剩余抽奖人数</span>: <span id="remainingCount">0</span></p>
                                     <p><span data-i18n="boss_count">老板人数</span>: <span id="bossCount">0</span></p>
                                     <p><span data-i18n="user_count">员工人数</span>: <span id="userCount">0</span></p>
@@ -321,7 +314,12 @@
                         </div>
 
                         <div class="mt-3">
-                            <h5><i class="fa fa-list" aria-hidden="true"></i> <span data-i18n="stats_winner_list">中奖明细</span></h5>
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="mb-0"><i class="fa fa-list" aria-hidden="true"></i> <span data-i18n="stats_winner_list">中奖明细</span></h5>
+                                <button type="button" class="btn btn-success" id="exportWinnersBtn">
+                                    <i class="fa fa-file-excel-o" aria-hidden="true"></i> <span data-i18n="export_excel">导出Excel</span>
+                                </button>
+                            </div>
                             <div class="table-container">
                                 <table class="table table-striped table-hover">
                                     <thead>
@@ -396,7 +394,7 @@
                                     <h5><i class="fa fa-language" aria-hidden="true"></i> <span data-i18n="language_title">Language</span></h5>
                                     <label for="languageSelect" class="form-label" data-i18n="language_label">Interface language</label>
                                     <select class="form-select" id="languageSelect">
-                                        <option value="zh" data-i18n="lang_zh">����</option>
+                                        <option value="zh" data-i18n="lang_zh">中文</option>
                                         <option value="en" data-i18n="lang_en">English</option>
                                     </select>
                                 </div>
@@ -442,7 +440,7 @@
         </div>
     </div>
     
-    <!-- 引入必要的JavaScript�?-->
+    <!-- 引入必要的JavaScript -->
     <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
