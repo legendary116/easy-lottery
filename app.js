@@ -16,6 +16,8 @@ let currentSpinAxis = { x: 0, y: 1, z: 0 };
 let currentSpinDuration = 30;
 const GLOBE_RADIUS = 210;
 const FULLSCREEN_GLOBE_RADIUS = 260;
+const DEFAULT_WINNER_REVEAL_DURATION = 10;
+const DEFAULT_MULTI_REVEAL_DELAY = 1;
 
 // 鼠标拖动旋转相关变量
 let isDragging = false;
@@ -28,6 +30,16 @@ let awards = [];
 let selectedAwardId = null;
 let lastDraw = null;
 let currentDrawAwardId = null;
+let userSearchTerm = '';
+const AWARD_IMAGE_DIR = 'images';
+const DEFAULT_AWARD_IMAGE = 'gift.jpg';
+let pendingAwardImage = {
+    type: 'preset',
+    preset: DEFAULT_AWARD_IMAGE,
+    data: null
+};
+let winnerRevealDuration = DEFAULT_WINNER_REVEAL_DURATION;
+let winnerMultiDelay = DEFAULT_MULTI_REVEAL_DELAY;
 
 const LANG_STORAGE_KEY = 'lotteryLang';
 let currentLang = localStorage.getItem(LANG_STORAGE_KEY) || null;
@@ -78,6 +90,13 @@ function applyI18n() {
     updateStatsPage();
 }
 
+function applyWinnerAnimationSettings() {
+    const root = document.documentElement;
+    root.style.setProperty('--winner-reveal-duration', `${winnerRevealDuration}s`);
+    root.style.setProperty('--winner-multi-duration', `${winnerRevealDuration}s`);
+    root.style.setProperty('--winner-multi-delay', `${winnerMultiDelay}s`);
+}
+
 function updateLotteryStatusText() {
     if (isLotteryRunning) {
         return;
@@ -115,6 +134,37 @@ $(document).ready(function() {
     $('#saveEditBtn').click(saveEdit);
     $('#clearDataBtn').click(clearData);
     $('#awardForm').submit(addAward);
+    $('#userSearchInput').on('input', function() {
+        userSearchTerm = $(this).val().trim().toLowerCase();
+        updateUserTable();
+    });
+    $('#awardImagePreset').on('change', function() {
+        pendingAwardImage = {
+            type: 'preset',
+            preset: $(this).val() || DEFAULT_AWARD_IMAGE,
+            data: null
+        };
+    });
+    $('#awardImageUpload').on('change', function() {
+        const file = this.files && this.files[0];
+        if (!file) {
+            pendingAwardImage = {
+                type: 'preset',
+                preset: $('#awardImagePreset').val() || DEFAULT_AWARD_IMAGE,
+                data: null
+            };
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => {
+            pendingAwardImage = {
+                type: 'custom',
+                preset: $('#awardImagePreset').val() || DEFAULT_AWARD_IMAGE,
+                data: reader.result
+            };
+        };
+        reader.readAsDataURL(file);
+    });
     $('#awardList').on('click', '.award-card', function() {
         if (isLotteryRunning) return;
         if ($(this).hasClass('disabled')) return;
@@ -123,6 +173,31 @@ $(document).ready(function() {
     $('#awardManageList').on('click', '[data-action="award-delete"]', function() {
         const awardId = Number($(this).closest('.award-manage-item').data('id'));
         deleteAward(awardId);
+    });
+    $('#awardManageList').on('change', 'select[data-action="award-preset"]', function() {
+        const awardId = Number($(this).closest('.award-manage-item').data('id'));
+        const award = awards.find((item) => item.id === awardId);
+        if (!award) return;
+        award.imageType = 'preset';
+        award.imagePreset = $(this).val() || DEFAULT_AWARD_IMAGE;
+        award.imageData = null;
+        renderAwards();
+        updateStatsPage();
+    });
+    $('#awardManageList').on('change', 'input[data-action="award-upload"]', function() {
+        const file = this.files && this.files[0];
+        if (!file) return;
+        const awardId = Number($(this).closest('.award-manage-item').data('id'));
+        const award = awards.find((item) => item.id === awardId);
+        if (!award) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+            award.imageType = 'custom';
+            award.imageData = reader.result;
+            renderAwards();
+            updateStatsPage();
+        };
+        reader.readAsDataURL(file);
     });
     $('#awardManageList').on('click', '[data-action="award-inc"]', function() {
         const item = $(this).closest('.award-manage-item');
@@ -159,6 +234,20 @@ $(document).ready(function() {
         autoStopDuration = parseInt($(this).val()) || 5;
         localStorage.setItem('autoStopDuration', autoStopDuration);
     });
+    $('#winnerRevealDuration').change(function() {
+        const value = parseFloat($(this).val());
+        winnerRevealDuration = Number.isFinite(value) && value > 0 ? value : DEFAULT_WINNER_REVEAL_DURATION;
+        localStorage.setItem('winnerRevealDuration', winnerRevealDuration);
+        applyWinnerAnimationSettings();
+        showAlert(t('settings_saved'), 'success');
+    });
+    $('#winnerMultiDelay').change(function() {
+        const value = parseFloat($(this).val());
+        winnerMultiDelay = Number.isFinite(value) && value >= 0 ? value : DEFAULT_MULTI_REVEAL_DELAY;
+        localStorage.setItem('winnerMultiDelay', winnerMultiDelay);
+        applyWinnerAnimationSettings();
+        showAlert(t('settings_saved'), 'success');
+    });
 
     $('#drawerToggle').on('click', function() {
         $('body').toggleClass('drawer-open');
@@ -170,6 +259,20 @@ $(document).ready(function() {
     });
     $('#drawerBackdrop').on('click', function() {
         $('body').removeClass('drawer-open');
+    });
+
+    $('button[data-bs-toggle="tab"]').on('shown.bs.tab', function(e) {
+        const target = $(e.target).attr('data-bs-target');
+        if (target === '#stats') {
+            updateStatsPage();
+        } else if (target === '#settings') {
+            updateStats();
+            syncSettingsUI();
+        } else if (target === '#lottery') {
+            updateResultTable();
+        } else if (target === '#manage') {
+            updateUserTable();
+        }
     });
 
     $('#fullscreenToggle').on('click', function() {
@@ -190,6 +293,7 @@ $(document).ready(function() {
     });
 
     applyI18n();
+    applyWinnerAnimationSettings();
 });
 
 // 加载数据
@@ -199,6 +303,14 @@ function loadData() {
     bossKeepInPool = localStorage.getItem('bossKeepInPool') !== 'false'; // 默认为true
     autoStopEnabled = localStorage.getItem('autoStopEnabled') === 'true';
     autoStopDuration = parseInt(localStorage.getItem('autoStopDuration')) || 5;
+    const savedRevealDuration = parseFloat(localStorage.getItem('winnerRevealDuration'));
+    const savedMultiDelay = parseFloat(localStorage.getItem('winnerMultiDelay'));
+    winnerRevealDuration = Number.isFinite(savedRevealDuration) && savedRevealDuration > 0
+        ? savedRevealDuration
+        : DEFAULT_WINNER_REVEAL_DURATION;
+    winnerMultiDelay = Number.isFinite(savedMultiDelay) && savedMultiDelay >= 0
+        ? savedMultiDelay
+        : DEFAULT_MULTI_REVEAL_DELAY;
     awards = (JSON.parse(localStorage.getItem('lotteryAwards')) || []).map(normalizeAward);
     selectedAwardId = localStorage.getItem('selectedAwardId') || null;
 }
@@ -229,7 +341,15 @@ function updateUserTable() {
     const tbody = $('#userTable');
     tbody.empty();
 
-    users.forEach((user, index) => {
+    const filteredUsers = userSearchTerm
+        ? users.filter((user) => {
+            const name = (user.name || '').toLowerCase();
+            const number = (user.number || '').toLowerCase();
+            return name.includes(userSearchTerm) || number.includes(userSearchTerm);
+        })
+        : users;
+
+    filteredUsers.forEach((user, index) => {
         const tr = $('<tr></tr>');
         tr.append($('<td></td>').text(user.name));
         tr.append($('<td></td>').text(user.number));
@@ -240,8 +360,9 @@ function updateUserTable() {
         tr.append($('<td></td>').append(typeBadge));
 
         const actions = $('<td></td>');
-        actions.append($('<button class="btn btn-sm btn-primary me-1" onclick="editUser(' + index + ')"><i class="fa fa-pencil"></i></button>'));
-        actions.append($('<button class="btn btn-sm btn-danger" onclick="deleteUser(' + index + ')"><i class="fa fa-trash"></i></button>'));
+        const originalIndex = users.indexOf(user);
+        actions.append($('<button class="btn btn-sm btn-primary me-1" onclick="editUser(' + originalIndex + ')"><i class="fa fa-pencil"></i></button>'));
+        actions.append($('<button class="btn btn-sm btn-danger" onclick="deleteUser(' + originalIndex + ')"><i class="fa fa-trash"></i></button>'));
         tr.append(actions);
 
         tbody.append(tr);
@@ -255,7 +376,11 @@ function updateResultTable() {
         winners.forEach((winner, index) => {
             const tr = $('<tr></tr>');
             tr.append($('<td></td>').text(index + 1));
-            tr.append($('<td></td>').text(winner.name));
+            const nameCell = $('<td></td>').append($('<span></span>').text(winner.name));
+            if (winner.type === 'boss' && bossKeepInPool) {
+                nameCell.append(` <span class="badge badge-boss-win">${t('boss_win_note')}</span>`);
+            }
+            tr.append(nameCell);
             tr.append($('<td></td>').text(winner.number));
 
             const typeBadge = winner.type === 'boss'
@@ -336,7 +461,11 @@ function updateStatsPage() {
     winners.forEach((winner, index) => {
         const tr = $('<tr></tr>');
         tr.append($('<td></td>').text(index + 1));
-        tr.append($('<td></td>').text(winner.name));
+        const nameCell = $('<td></td>').append($('<span></span>').text(winner.name));
+        if (winner.type === 'boss' && bossKeepInPool) {
+            nameCell.append(` <span class="badge badge-boss-win">${t('boss_win_note')}</span>`);
+        }
+        tr.append(nameCell);
         tr.append($('<td></td>').text(winner.number));
         const typeLabel = winner.type === 'boss' ? t('type_boss') : t('type_user');
         tr.append($('<td></td>').text(typeLabel));
@@ -393,17 +522,32 @@ function normalizeAward(award) {
     if (!Number.isFinite(remaining)) {
         remaining = total;
     }
+    const imageType = award.imageType === 'custom' && award.imageData ? 'custom' : 'preset';
+    const imagePreset = award.imagePreset || DEFAULT_AWARD_IMAGE;
+    const imageData = award.imageData || null;
     return {
         ...award,
         total,
         perDraw,
-        remaining: Math.max(0, remaining)
+        remaining: Math.max(0, remaining),
+        imageType,
+        imagePreset,
+        imageData
     };
 }
 
 function getSelectedAward() {
     if (!selectedAwardId) return null;
     return awards.find((award) => award.id === selectedAwardId) || null;
+}
+
+function getAwardImageSrc(award) {
+    if (!award) return `${AWARD_IMAGE_DIR}/${DEFAULT_AWARD_IMAGE}`;
+    if (award.imageType === 'custom' && award.imageData) {
+        return award.imageData;
+    }
+    const preset = award.imagePreset || DEFAULT_AWARD_IMAGE;
+    return `${AWARD_IMAGE_DIR}/${preset}`;
 }
 
 function updateSelectedAwardOverlay() {
@@ -413,12 +557,17 @@ function updateSelectedAwardOverlay() {
         $('#selectedAwardPrize').text('-');
         $('#selectedAwardPerDraw').text('0');
         $('#selectedAwardRemaining').text('0');
+        $('#selectedAwardImage').attr('src', `${AWARD_IMAGE_DIR}/${DEFAULT_AWARD_IMAGE}`);
+        $('#currentAwardImage').attr('src', `${AWARD_IMAGE_DIR}/${DEFAULT_AWARD_IMAGE}`);
         return;
     }
     $('#selectedAwardName').text(award.name);
     $('#selectedAwardPrize').text(award.prize);
     $('#selectedAwardPerDraw').text(award.perDraw);
     $('#selectedAwardRemaining').text(award.remaining);
+    const imageSrc = getAwardImageSrc(award);
+    $('#selectedAwardImage').attr('src', imageSrc);
+    $('#currentAwardImage').attr('src', imageSrc);
 }
 
 function renderAwards() {
@@ -436,9 +585,12 @@ function renderAwards() {
             awards.forEach((award) => {
                 const isSelected = award.id === selectedAwardId;
                 const isDisabled = award.remaining <= 0 || award.perDraw <= 0 || award.remaining < award.perDraw;
+                const imageSrc = getAwardImageSrc(award);
                 const card = $(`
                     <div class="award-card ${isSelected ? 'selected' : ''} ${isDisabled ? 'disabled' : ''}" data-id="${award.id}">
-                        <div class="award-badge"><i class="fa fa-gift"></i></div>
+                        <div class="award-badge">
+                            <img src="${imageSrc}" alt="${award.name}">
+                        </div>
                         <div class="award-info">
                             <div class="award-title">${award.name}</div>
                             <div class="award-prize">${award.prize}</div>
@@ -460,33 +612,62 @@ function renderAwards() {
             manageList.append(`<div class="text-muted">${t('award_empty')}</div>`);
         } else {
             awards.forEach((award) => {
+                const imageSrc = getAwardImageSrc(award);
+                const presetValue = award.imagePreset || DEFAULT_AWARD_IMAGE;
                 const item = $(`
                     <div class="award-manage-item" data-id="${award.id}">
                         <div class="award-manage-header">
-                            <div>
-                                <div class="award-manage-title">${award.name}</div>
-                                <div class="text-muted">${award.prize}</div>
+                            <div class="award-manage-info">
+                                <div class="award-manage-thumb">
+                                    <img src="${imageSrc}" alt="${award.name}">
+                                </div>
+                                <div class="award-manage-body">
+                                    <div class="award-manage-line">
+                                        <span class="award-manage-title">${award.name}</span>
+                                        <span class="award-manage-divider">•</span>
+                                        <span class="award-manage-prize">${award.prize}</span>
+                                    </div>
+                                    <div class="award-manage-upload">
+                                        <div class="award-manage-upload-item">
+                                            <label class="form-label mb-1">${t('award_image_preset')}</label>
+                                            <select class="form-select form-select-sm" data-action="award-preset">
+                                                <option value="gift.jpg">${t('award_image_gift')}</option>
+                                                <option value="money.jpg">${t('award_image_money')}</option>
+                                                <option value="phone.jpg">${t('award_image_phone')}</option>
+                                            </select>
+                                        </div>
+                                        <div class="award-manage-upload-item">
+                                            <label class="form-label mb-1">${t('award_image_upload')}</label>
+                                            <input type="file" class="form-control form-control-sm" data-action="award-upload" accept="image/*">
+                                        </div>
+                                    </div>
+                                    <div class="award-manage-controls">
+                                        <div class="award-manage-control-labels">
+                                            <span>${t('award_total')}</span>
+                                            <span>${t('award_per_draw')}</span>
+                                        </div>
+                                        <div class="award-manage-control-inputs">
+                                            <div class="award-manage-control">
+                                                <button class="btn btn-sm btn-outline-secondary" data-action="award-dec" data-field="total">-</button>
+                                                <input type="number" class="form-control form-control-sm" data-field="total" value="${award.total}" min="1">
+                                                <button class="btn btn-sm btn-outline-secondary" data-action="award-inc" data-field="total">+</button>
+                                            </div>
+                                            <div class="award-manage-control">
+                                                <button class="btn btn-sm btn-outline-secondary" data-action="award-dec" data-field="perDraw">-</button>
+                                                <input type="number" class="form-control form-control-sm" data-field="perDraw" value="${award.perDraw}" min="1">
+                                                <button class="btn btn-sm btn-outline-secondary" data-action="award-inc" data-field="perDraw">+</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                             <div class="award-manage-actions">
                                 <button class="btn btn-sm btn-outline-danger" data-action="award-delete"><i class="fa fa-trash"></i></button>
                             </div>
                         </div>
-                        <div class="award-manage-controls">
-                            <div class="award-manage-control">
-                                <span>${t('award_total')}</span>
-                                <button class="btn btn-sm btn-outline-secondary" data-action="award-dec" data-field="total">-</button>
-                                <input type="number" class="form-control form-control-sm" data-field="total" value="${award.total}" min="1">
-                                <button class="btn btn-sm btn-outline-secondary" data-action="award-inc" data-field="total">+</button>
-                            </div>
-                            <div class="award-manage-control">
-                                <span>${t('award_per_draw')}</span>
-                                <button class="btn btn-sm btn-outline-secondary" data-action="award-dec" data-field="perDraw">-</button>
-                                <input type="number" class="form-control form-control-sm" data-field="perDraw" value="${award.perDraw}" min="1">
-                                <button class="btn btn-sm btn-outline-secondary" data-action="award-inc" data-field="perDraw">+</button>
-                            </div>
-                        </div>
                     </div>
                 `);
+                item.find('select[data-action="award-preset"]').val(presetValue);
                 manageList.append(item);
             });
         }
@@ -511,19 +692,35 @@ function addAward(e) {
         showAlert(t('award_required'), 'warning');
         return;
     }
+    if (perDraw > total) {
+        showAlert(t('award_per_draw_exceed_total'), 'warning');
+        return;
+    }
+    const imageType = pendingAwardImage.type === 'custom' && pendingAwardImage.data ? 'custom' : 'preset';
+    const imagePreset = pendingAwardImage.preset || DEFAULT_AWARD_IMAGE;
+    const imageData = pendingAwardImage.data || null;
     const award = normalizeAward({
         id: Date.now() + Math.random(),
         name,
         prize,
         total,
         perDraw,
-        remaining: total
+        remaining: total,
+        imageType,
+        imagePreset,
+        imageData
     });
     awards.push(award);
     if (!selectedAwardId) {
         selectedAwardId = award.id;
     }
     $('#awardForm')[0].reset();
+    $('#awardImageUpload').val('');
+    pendingAwardImage = {
+        type: 'preset',
+        preset: DEFAULT_AWARD_IMAGE,
+        data: null
+    };
     renderAwards();
     updateStatsPage();
 }
@@ -539,9 +736,17 @@ function updateAwardValue(awardId, field, value) {
             showAlert(t('award_total_too_small'), 'warning');
             return;
         }
+        if (numericValue < award.perDraw) {
+            showAlert(t('award_per_draw_exceed_total'), 'warning');
+            return;
+        }
         award.total = numericValue;
         award.remaining = numericValue - awarded;
     } else if (field === 'perDraw') {
+        if (numericValue > award.total) {
+            showAlert(t('award_per_draw_exceed_total'), 'warning');
+            return;
+        }
         award.perDraw = numericValue;
     }
     renderAwards();
@@ -1352,19 +1557,20 @@ function stopLottery() {
         $('#lotteryName').toggleClass('boss-name', pickedUsers[0].type === 'boss');
         $('body').addClass('winner-reveal');
         const info = $('.lottery-info');
-        info.removeClass('winner-pop');
+        info.removeClass('winner-pop winner-slide');
         if (info.length) {
             void info[0].offsetWidth;
         }
-        info.addClass('winner-pop');
+        info.addClass('winner-slide');
     } else {
         $('body').addClass('multi-winner').removeClass('winner-reveal');
         $('#lotteryNumber').text('');
         $('#lotteryName').text('');
         $('#lotteryName').removeClass('boss-name');
-        pickedUsers.forEach((winner) => {
+        pickedUsers.forEach((winner, index) => {
+            const delay = (index * winnerMultiDelay).toFixed(2);
             popups.append(`
-                <div class="winner-card ${winner.type === 'boss' ? 'boss-name' : ''}">
+                <div class="winner-card winner-slide ${winner.type === 'boss' ? 'boss-name' : ''}" style="animation-delay:${delay}s;">
                     <div class="winner-name">${winner.name}</div>
                     <div class="winner-number">${winner.number}</div>
                 </div>
@@ -1375,15 +1581,7 @@ function stopLottery() {
     lastDraw = { drawId, awardId: drawAward.id, count: pickedUsers.length };
     $('#undoBtn').prop('disabled', false);
 
-    if (pickedUsers.length === 1) {
-        if (pickedUsers[0].type === 'boss' && bossKeepInPool) {
-            showAlert(t('win_boss_keep', { name: pickedUsers[0].name, number: pickedUsers[0].number }), 'info');
-        } else {
-            showAlert(t('win_success', { name: pickedUsers[0].name, number: pickedUsers[0].number }), 'success');
-        }
-    } else {
-        showAlert(t('multi_winners', { name: pickedUsers[0].name, count: pickedUsers.length - 1 }), 'success');
-    }
+    // 中奖后不再弹出右上角提示
 
     saveData();
     updateResultTable();
@@ -1492,12 +1690,19 @@ function syncSettingsUI() {
     $('#autoStopEnabled').prop('checked', autoStopEnabled);
     $('#autoStopDuration').val(autoStopDuration);
     $('#autoStopDurationContainer').toggle(autoStopEnabled);
+    $('#winnerRevealDuration').val(winnerRevealDuration);
+    $('#winnerMultiDelay').val(winnerMultiDelay);
 }
 
 // 显示提示
 function showAlert(message, type) {
     const alert = $("<div class=\"alert alert-" + type + " alert-dismissible fade show\" role=\"alert\">" + message + "<button type=\"button\" class=\"btn-close\" data-bs-dismiss=\"alert\" aria-label=\"" + t('button_close') + "\"></button></div>");
-    $('.container').prepend(alert);
+    const container = $('#alertContainer');
+    if (container.length) {
+        container.prepend(alert);
+    } else {
+        $('body').prepend(alert);
+    }
     setTimeout(() => {
         try {
             const el = alert[0];
