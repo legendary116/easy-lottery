@@ -24,6 +24,75 @@ let globeRotation = { x: 0, y: 0 };
 let autoRotate = true; // 是否自动旋转
 let lastDragTime = 0;
 let dragVelocity = { x: 0, y: 0 };
+let awards = [];
+let selectedAwardId = null;
+let lastDraw = null;
+let currentDrawAwardId = null;
+
+const LANG_STORAGE_KEY = 'lotteryLang';
+let currentLang = localStorage.getItem(LANG_STORAGE_KEY) || null;
+
+function t(key, vars = {}) {
+    const dict = (window.I18N && window.I18N[currentLang]) || window.I18N?.[window.I18N_DEFAULT] || {};
+    let text = dict[key] || key;
+    Object.keys(vars).forEach((k) => {
+        text = text.replace(new RegExp(`\\{${k}\\}`, 'g'), vars[k]);
+    });
+    return text;
+}
+
+function applyI18n() {
+    const defaultLang = window.I18N_DEFAULT || 'zh';
+    if (!currentLang || !window.I18N || !window.I18N[currentLang]) {
+        const browserLang = (navigator.language || '').toLowerCase();
+        currentLang = browserLang.startsWith('en') ? 'en' : defaultLang;
+        localStorage.setItem(LANG_STORAGE_KEY, currentLang);
+    }
+
+    document.querySelectorAll('[data-i18n]').forEach((el) => {
+        el.textContent = t(el.dataset.i18n);
+    });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach((el) => {
+        el.setAttribute('placeholder', t(el.dataset.i18nPlaceholder));
+    });
+    document.querySelectorAll('[data-i18n-aria]').forEach((el) => {
+        el.setAttribute('aria-label', t(el.dataset.i18nAria));
+    });
+
+    document.title = t('app_title');
+    const languageSelect = $('#languageSelect');
+    if (languageSelect.length) {
+        languageSelect.val(currentLang);
+    }
+
+    const drawerToggle = $('#drawerToggle');
+    if (drawerToggle.length) {
+        const isOpen = $('body').hasClass('drawer-open');
+        drawerToggle.attr('aria-label', isOpen ? t('drawer_close') : t('drawer_open'));
+    }
+
+    updateFullscreenState();
+    updateLotteryStatusText();
+    updateTables();
+    renderAwards();
+    updateStatsPage();
+}
+
+function updateLotteryStatusText() {
+    if (isLotteryRunning) {
+        return;
+    }
+    if (currentLottery) {
+        $('#lotteryNumber').text(currentLottery.number);
+        $('#lotteryName').text(currentLottery.name);
+        return;
+    }
+    $('#lotteryNumber').text('000');
+    $('#lotteryName').text(t('lottery_ready'));
+    $('#winnerPopups').empty();
+    $('body').removeClass('multi-winner');
+    $('#lotteryName').removeClass('boss-name');
+}
 
 // 初始化
 $(document).ready(function() {
@@ -39,21 +108,52 @@ $(document).ready(function() {
     $('#startBtn').click(startLottery);
     $('#stopBtn').click(stopLottery);
     $('#resetBtn').click(resetLottery);
+    $('#undoBtn').click(undoLastDraw);
     $('#addForm').submit(addUser);
     $('#userExcel').change(importUsers);
     $('#bossExcel').change(importBosses);
     $('#saveEditBtn').click(saveEdit);
     $('#clearDataBtn').click(clearData);
+    $('#awardForm').submit(addAward);
+    $('#awardList').on('click', '.award-card', function() {
+        if (isLotteryRunning) return;
+        if ($(this).hasClass('disabled')) return;
+        selectAward(Number($(this).data('id')));
+    });
+    $('#awardManageList').on('click', '[data-action="award-delete"]', function() {
+        const awardId = Number($(this).closest('.award-manage-item').data('id'));
+        deleteAward(awardId);
+    });
+    $('#awardManageList').on('click', '[data-action="award-inc"]', function() {
+        const item = $(this).closest('.award-manage-item');
+        adjustAwardValue(Number(item.data('id')), $(this).data('field'), 1);
+    });
+    $('#awardManageList').on('click', '[data-action="award-dec"]', function() {
+        const item = $(this).closest('.award-manage-item');
+        adjustAwardValue(Number(item.data('id')), $(this).data('field'), -1);
+    });
+    $('#awardManageList').on('change', 'input[data-field]', function() {
+        const item = $(this).closest('.award-manage-item');
+        updateAwardValue(Number(item.data('id')), $(this).data('field'), $(this).val());
+    });
+    $('#awardPanel').on('mouseenter', function() {
+        $(this).removeClass('show-selected');
+    });
+    $('#awardList').on('mouseleave', function() {
+        if (selectedAwardId) {
+            $('#awardPanel').addClass('show-selected');
+        }
+    });
     $('#bossKeepInPool').change(function() {
         bossKeepInPool = $(this).is(':checked');
         localStorage.setItem('bossKeepInPool', bossKeepInPool);
-        showAlert('设置已保存！', 'success');
+        showAlert(t('settings_saved'), 'success');
     });
     $('#autoStopEnabled').change(function() {
         autoStopEnabled = $(this).is(':checked');
         localStorage.setItem('autoStopEnabled', autoStopEnabled);
         $('#autoStopDurationContainer').toggle(autoStopEnabled);
-        showAlert('设置已保存！', 'success');
+        showAlert(t('settings_saved'), 'success');
     });
     $('#autoStopDuration').change(function() {
         autoStopDuration = parseInt($(this).val()) || 5;
@@ -63,7 +163,7 @@ $(document).ready(function() {
     $('#drawerToggle').on('click', function() {
         $('body').toggleClass('drawer-open');
         const isOpen = $('body').hasClass('drawer-open');
-        $(this).attr('aria-label', isOpen ? '收起抽奖结果' : '展开抽奖结果');
+        $(this).attr('aria-label', isOpen ? t('drawer_close') : t('drawer_open'));
     });
     $('#drawerClose').on('click', function() {
         $('body').removeClass('drawer-open');
@@ -82,6 +182,14 @@ $(document).ready(function() {
 
     document.addEventListener('fullscreenchange', updateFullscreenState);
     updateFullscreenState();
+
+    $('#languageSelect').on('change', function() {
+        currentLang = $(this).val();
+        localStorage.setItem(LANG_STORAGE_KEY, currentLang);
+        applyI18n();
+    });
+
+    applyI18n();
 });
 
 // 加载数据
@@ -91,18 +199,29 @@ function loadData() {
     bossKeepInPool = localStorage.getItem('bossKeepInPool') !== 'false'; // 默认为true
     autoStopEnabled = localStorage.getItem('autoStopEnabled') === 'true';
     autoStopDuration = parseInt(localStorage.getItem('autoStopDuration')) || 5;
+    awards = (JSON.parse(localStorage.getItem('lotteryAwards')) || []).map(normalizeAward);
+    selectedAwardId = localStorage.getItem('selectedAwardId') || null;
 }
 
 // 保存数据
 function saveData() {
     localStorage.setItem('lotteryUsers', JSON.stringify(users));
     localStorage.setItem('lotteryWinners', JSON.stringify(winners));
+    localStorage.setItem('lotteryAwards', JSON.stringify(awards));
+    if (selectedAwardId) {
+        localStorage.setItem('selectedAwardId', selectedAwardId);
+    } else {
+        localStorage.removeItem('selectedAwardId');
+    }
 }
 
 // 更新表格
 function updateTables() {
     updateUserTable();
     updateResultTable();
+    renderAwards();
+    updateStatsPage();
+    $('#undoBtn').prop('disabled', !lastDraw);
 }
 
 // 更新人员表格
@@ -115,9 +234,9 @@ function updateUserTable() {
         tr.append($('<td></td>').text(user.name));
         tr.append($('<td></td>').text(user.number));
 
-        const typeBadge = user.type === 'boss' 
-            ? $('<span class="badge badge-boss"><i class="fa fa-star"></i> 老板</span>')
-            : $('<span class="badge bg-secondary">员工</span>');
+        const typeBadge = user.type === 'boss'
+            ? $(`<span class="badge badge-boss"><i class="fa fa-star"></i> ${t('type_boss')}</span>`)
+            : $(`<span class="badge bg-secondary">${t('type_user')}</span>`);
         tr.append($('<td></td>').append(typeBadge));
 
         const actions = $('<td></td>');
@@ -140,9 +259,11 @@ function updateResultTable() {
             tr.append($('<td></td>').text(winner.number));
 
             const typeBadge = winner.type === 'boss'
-                ? $('<span class="badge badge-boss"><i class="fa fa-star"></i> 老板</span>')
-                : $('<span class="badge bg-secondary">员工</span>');
+                ? $(`<span class="badge badge-boss"><i class="fa fa-star"></i> ${t('type_boss')}</span>`)
+                : $(`<span class="badge bg-secondary">${t('type_user')}</span>`);
             tr.append($('<td></td>').append(typeBadge));
+            tr.append($('<td></td>').text(winner.awardName || '-'));
+            tr.append($('<td></td>').text(winner.awardPrize || '-'));
 
             // 添加中奖时间
             tr.append($('<td></td>').text(winner.winTime || '-'));
@@ -180,6 +301,50 @@ function updateStats() {
     $('#winnerCount').text(winners.length);
     $('#bossCount').text(users.filter(u => u.type === 'boss').length);
     $('#userCount').text(users.filter(u => u.type === 'user').length);
+    updateStatsPage();
+}
+
+function updateStatsPage() {
+    const statsTotalWinners = $('#statsTotalWinners');
+    if (!statsTotalWinners.length) return;
+
+    const totalWinners = winners.length;
+    const bossWins = winners.filter(w => w.type === 'boss').length;
+    statsTotalWinners.text(totalWinners);
+    $('#statsTotalAwards').text(awards.length);
+    $('#statsBossWins').text(bossWins);
+
+    const awardTable = $('#statsAwardTable');
+    awardTable.empty();
+    if (awards.length === 0) {
+        awardTable.append(`<tr><td colspan="4" class="text-muted">${t('award_empty')}</td></tr>`);
+    } else {
+        awards.forEach((award) => {
+            const drawn = winners.filter(w => w.awardId === award.id).length;
+            const remaining = Number.isFinite(award.remaining) ? award.remaining : Math.max(0, award.total - drawn);
+            const tr = $('<tr></tr>');
+            tr.append($('<td></td>').text(award.name));
+            tr.append($('<td></td>').text(award.prize));
+            tr.append($('<td></td>').text(drawn));
+            tr.append($('<td></td>').text(remaining));
+            awardTable.append(tr);
+        });
+    }
+
+    const winnerTable = $('#statsWinnerTable');
+    winnerTable.empty();
+    winners.forEach((winner, index) => {
+        const tr = $('<tr></tr>');
+        tr.append($('<td></td>').text(index + 1));
+        tr.append($('<td></td>').text(winner.name));
+        tr.append($('<td></td>').text(winner.number));
+        const typeLabel = winner.type === 'boss' ? t('type_boss') : t('type_user');
+        tr.append($('<td></td>').text(typeLabel));
+        tr.append($('<td></td>').text(winner.awardName || '-'));
+        tr.append($('<td></td>').text(winner.awardPrize || '-'));
+        tr.append($('<td></td>').text(winner.winTime || '-'));
+        winnerTable.append(tr);
+    });
 }
 
 // 更新名字墙 - 已移除，改用3D球体显示
@@ -221,6 +386,190 @@ function updateDragCounterRotation(globe) {
     });
 }
 
+function normalizeAward(award) {
+    const total = Number(award.total) || 0;
+    const perDraw = Number(award.perDraw) || 1;
+    let remaining = Number(award.remaining);
+    if (!Number.isFinite(remaining)) {
+        remaining = total;
+    }
+    return {
+        ...award,
+        total,
+        perDraw,
+        remaining: Math.max(0, remaining)
+    };
+}
+
+function getSelectedAward() {
+    if (!selectedAwardId) return null;
+    return awards.find((award) => award.id === selectedAwardId) || null;
+}
+
+function updateSelectedAwardOverlay() {
+    const award = getSelectedAward();
+    if (!award) {
+        $('#selectedAwardName').text('-');
+        $('#selectedAwardPrize').text('-');
+        $('#selectedAwardPerDraw').text('0');
+        $('#selectedAwardRemaining').text('0');
+        return;
+    }
+    $('#selectedAwardName').text(award.name);
+    $('#selectedAwardPrize').text(award.prize);
+    $('#selectedAwardPerDraw').text(award.perDraw);
+    $('#selectedAwardRemaining').text(award.remaining);
+}
+
+function renderAwards() {
+    awards = awards.map(normalizeAward);
+    if (selectedAwardId && !awards.find((award) => award.id === selectedAwardId)) {
+        selectedAwardId = null;
+    }
+    const list = $('#awardList');
+    const manageList = $('#awardManageList');
+    if (list.length) {
+        list.empty();
+        if (awards.length === 0) {
+            list.append(`<div class="text-muted">${t('award_empty')}</div>`);
+        } else {
+            awards.forEach((award) => {
+                const isSelected = award.id === selectedAwardId;
+                const isDisabled = award.remaining <= 0 || award.perDraw <= 0 || award.remaining < award.perDraw;
+                const card = $(`
+                    <div class="award-card ${isSelected ? 'selected' : ''} ${isDisabled ? 'disabled' : ''}" data-id="${award.id}">
+                        <div class="award-badge"><i class="fa fa-gift"></i></div>
+                        <div class="award-info">
+                            <div class="award-title">${award.name}</div>
+                            <div class="award-prize">${award.prize}</div>
+                            <div class="award-meta">
+                                <span>${t('award_per_draw')} ${award.perDraw}</span>
+                                <span class="award-remaining">${t('award_remaining')} ${award.remaining}</span>
+                            </div>
+                        </div>
+                    </div>
+                `);
+                list.append(card);
+            });
+        }
+    }
+
+    if (manageList.length) {
+        manageList.empty();
+        if (awards.length === 0) {
+            manageList.append(`<div class="text-muted">${t('award_empty')}</div>`);
+        } else {
+            awards.forEach((award) => {
+                const item = $(`
+                    <div class="award-manage-item" data-id="${award.id}">
+                        <div class="award-manage-header">
+                            <div>
+                                <div class="award-manage-title">${award.name}</div>
+                                <div class="text-muted">${award.prize}</div>
+                            </div>
+                            <div class="award-manage-actions">
+                                <button class="btn btn-sm btn-outline-danger" data-action="award-delete"><i class="fa fa-trash"></i></button>
+                            </div>
+                        </div>
+                        <div class="award-manage-controls">
+                            <div class="award-manage-control">
+                                <span>${t('award_total')}</span>
+                                <button class="btn btn-sm btn-outline-secondary" data-action="award-dec" data-field="total">-</button>
+                                <input type="number" class="form-control form-control-sm" data-field="total" value="${award.total}" min="1">
+                                <button class="btn btn-sm btn-outline-secondary" data-action="award-inc" data-field="total">+</button>
+                            </div>
+                            <div class="award-manage-control">
+                                <span>${t('award_per_draw')}</span>
+                                <button class="btn btn-sm btn-outline-secondary" data-action="award-dec" data-field="perDraw">-</button>
+                                <input type="number" class="form-control form-control-sm" data-field="perDraw" value="${award.perDraw}" min="1">
+                                <button class="btn btn-sm btn-outline-secondary" data-action="award-inc" data-field="perDraw">+</button>
+                            </div>
+                        </div>
+                    </div>
+                `);
+                manageList.append(item);
+            });
+        }
+    }
+
+    updateSelectedAwardOverlay();
+    saveData();
+}
+
+function selectAward(awardId) {
+    selectedAwardId = awardId;
+    renderAwards();
+}
+
+function addAward(e) {
+    e.preventDefault();
+    const name = $('#awardName').val().trim();
+    const prize = $('#awardPrize').val().trim();
+    const total = parseInt($('#awardTotal').val(), 10);
+    const perDraw = parseInt($('#awardPerDraw').val(), 10);
+    if (!name || !prize || !Number.isFinite(total) || !Number.isFinite(perDraw) || total <= 0 || perDraw <= 0) {
+        showAlert(t('award_required'), 'warning');
+        return;
+    }
+    const award = normalizeAward({
+        id: Date.now() + Math.random(),
+        name,
+        prize,
+        total,
+        perDraw,
+        remaining: total
+    });
+    awards.push(award);
+    if (!selectedAwardId) {
+        selectedAwardId = award.id;
+    }
+    $('#awardForm')[0].reset();
+    renderAwards();
+    updateStatsPage();
+}
+
+function updateAwardValue(awardId, field, value) {
+    const award = awards.find((item) => item.id === awardId);
+    if (!award) return;
+    const numericValue = parseInt(value, 10);
+    if (!Number.isFinite(numericValue) || numericValue <= 0) return;
+    if (field === 'total') {
+        const awarded = award.total - award.remaining;
+        if (numericValue < awarded) {
+            showAlert(t('award_total_too_small'), 'warning');
+            return;
+        }
+        award.total = numericValue;
+        award.remaining = numericValue - awarded;
+    } else if (field === 'perDraw') {
+        award.perDraw = numericValue;
+    }
+    renderAwards();
+    updateStatsPage();
+}
+
+function adjustAwardValue(awardId, field, delta) {
+    const award = awards.find((item) => item.id === awardId);
+    if (!award) return;
+    const currentValue = field === 'total' ? award.total : award.perDraw;
+    const nextValue = Math.max(1, currentValue + delta);
+    updateAwardValue(awardId, field, nextValue);
+}
+
+function deleteAward(awardId) {
+    const award = awards.find((item) => item.id === awardId);
+    if (!award) return;
+    if (!confirm(t('award_delete_confirm'))) {
+        return;
+    }
+    awards = awards.filter((item) => item.id !== awardId);
+    if (selectedAwardId === awardId) {
+        selectedAwardId = null;
+    }
+    renderAwards();
+    updateStatsPage();
+}
+
 function getGlobeRadius() {
     return document.fullscreenElement ? FULLSCREEN_GLOBE_RADIUS : GLOBE_RADIUS;
 }
@@ -232,7 +581,7 @@ function updateFullscreenState() {
     const button = $('#fullscreenToggle');
     if (button.length) {
         const icon = isFullscreen ? 'compress' : 'arrows-alt';
-        const text = isFullscreen ? '退出全屏' : '全屏展示';
+        const text = isFullscreen ? t('fullscreen_exit') : t('fullscreen_enter');
         button.html(`<i class="fa fa-${icon}" aria-hidden="true"></i> ${text}`);
     }
     if (!isLotteryRunning) {
@@ -319,6 +668,18 @@ function resumeAutoRotateFromDrag(globe) {
     }
 }
 
+function pickRandomUsers(list, count) {
+    const pool = [...list];
+    const picked = [];
+    const max = Math.min(count, pool.length);
+    for (let i = 0; i < max; i++) {
+        const index = Math.floor(Math.random() * pool.length);
+        picked.push(pool[index]);
+        pool.splice(index, 1);
+    }
+    return picked;
+}
+
 // 添加用户
 function addUser(e) {
     e.preventDefault();
@@ -329,7 +690,7 @@ function addUser(e) {
 
     // 检查号码是否重复
     if (users.some(user => user.number === number)) {
-        alert('该号码已存在！');
+        alert(t('number_exists'));
         return;
     }
 
@@ -347,7 +708,7 @@ function addUser(e) {
     updateNameWall();
 
     $('#addForm')[0].reset();
-    showAlert('添加成功！', 'success');
+    showAlert(t('add_success'), 'success');
 }
 
 // 编辑用户
@@ -369,7 +730,7 @@ function saveEdit() {
 
     // 检查号码是否重复（排除自身）
     if (users.some((user, i) => i !== parseInt(index) && user.number === number)) {
-        alert('该号码已存在！');
+        alert(t('number_exists'));
         return;
     }
 
@@ -385,18 +746,18 @@ function saveEdit() {
     updateStats();
     updateNameWall();
     $('#editModal').modal('hide');
-    showAlert('更新成功！', 'success');
+    showAlert(t('update_success'), 'success');
 }
 
 // 删除用户
 function deleteUser(index) {
-    if (confirm('确定要删除该用户吗？')) {
+    if (confirm(t('delete_confirm'))) {
         users.splice(index, 1);
         saveData();
         updateTables();
         updateStats();
         updateNameWall();
-        showAlert('删除成功！', 'success');
+        showAlert(t('delete_success'), 'success');
     }
 }
 
@@ -449,7 +810,7 @@ function importUsersFromJson(jsonData, type) {
     let skippedEmpty = 0;
 
     if (jsonData.length === 0) {
-        showAlert('Excel文件为空！', 'warning');
+        showAlert(t('excel_empty'), 'warning');
         return;
     }
 
@@ -535,12 +896,12 @@ function importUsersFromJson(jsonData, type) {
 
     // 验证识别结果
     if (!nameKey || !numberKey) {
-        showAlert('无法识别Excel列名，请确保包含"姓名"和"号码"列！', 'danger');
+        showAlert(t('excel_columns_missing'), 'danger');
         return;
     }
 
     if (nameKey === numberKey) {
-        showAlert('姓名列和号码列不能是同一列！请检查Excel文件格式。', 'danger');
+        showAlert(t('excel_same_column'), 'danger');
         return;
     }
 
@@ -568,7 +929,7 @@ function importUsersFromJson(jsonData, type) {
 
     // 如果全部都是空数据，给出提示
     if (importedCount === 0 && duplicateCount === 0) {
-        showAlert('Excel中没有有效的数据！请检查姓名和号码列是否都有值。', 'warning');
+        showAlert(t('excel_no_valid'), 'warning');
         return;
     }
 
@@ -577,12 +938,12 @@ function importUsersFromJson(jsonData, type) {
     updateStats();
     updateNameWall();
 
-    let message = `导入成功！新增 ${importedCount} 人`;
+    let message = t('import_success', { count: importedCount });
     if (duplicateCount > 0) {
-        message += `，跳过重复 ${duplicateCount} 人`;
+        message += t('import_skip_duplicate', { count: duplicateCount });
     }
     if (skippedEmpty > 0) {
-        message += `，跳过空数据 ${skippedEmpty} 行`;
+        message += t('import_skip_empty', { count: skippedEmpty });
     }
     showAlert(message, 'success');
 }
@@ -827,18 +1188,14 @@ function createGlobeEffect(remainingUsers) {
         }
     }, 1000);
 
-    // 随机选择中奖者
-    lotteryInterval = setInterval(() => {
-        const randomIndex = Math.floor(Math.random() * remainingUsers.length);
-        currentLottery = remainingUsers[randomIndex];
-    }, 100);
+    // 抽奖中不显示候选人
 }
 
 // 开始抽奖
 function startLottery() {
     // 添加更严格的状态检查
     if (isLotteryRunning) {
-        console.log('抽奖正在进行中，忽略重复点击');
+        console.log(t('lottery_running_ignore'));
         return;
     }
     if (recreateGlobeTimer) {
@@ -856,14 +1213,40 @@ function startLottery() {
     });
 
     if (remainingUsers.length === 0) {
-        alert('没有剩余抽奖人员！');
+        showAlert(t('no_remaining'), 'warning');
+        return;
+    }
+
+    const selectedAward = getSelectedAward();
+    if (!selectedAward) {
+        showAlert(t('award_select_required'), 'warning');
+        return;
+    }
+    if (selectedAward.remaining <= 0) {
+        showAlert(t('award_out_of_stock'), 'warning');
+        return;
+    }
+    if (selectedAward.perDraw <= 0) {
+        showAlert(t('award_per_draw_invalid'), 'warning');
+        return;
+    }
+    if (selectedAward.remaining < selectedAward.perDraw) {
+        showAlert(t('award_not_enough_remaining', { remaining: selectedAward.remaining }), 'warning');
+        return;
+    }
+    if (remainingUsers.length < selectedAward.perDraw) {
+        showAlert(t('award_not_enough_users', { count: selectedAward.perDraw }), 'warning');
         return;
     }
 
     isLotteryRunning = true;
+    currentDrawAwardId = selectedAward.id;
+    currentLottery = null;
     $('#startBtn').prop('disabled', true);
     $('body').addClass('lottery-running');
     $('body').removeClass('winner-reveal');
+    $('body').removeClass('multi-winner');
+    $('#winnerPopups').empty();
     $('#lotteryNumber').text('');
     $('#lotteryName').text('');
 
@@ -914,9 +1297,59 @@ function stopLottery() {
     $('#startBtn').prop('disabled', false);
     $('#stopBtn').prop('disabled', true);
 
-    if (currentLottery) {
-        $('#lotteryNumber').text(currentLottery.number);
-        $('#lotteryName').text(currentLottery.name);
+    const drawAward = awards.find((award) => award.id === currentDrawAwardId) || getSelectedAward();
+    if (!drawAward) {
+        showAlert(t('award_select_required'), 'warning');
+        return;
+    }
+
+    const remainingUsers = users.filter(user => {
+        const isWinner = winners.some(winner => winner.id === user.id);
+        if (bossKeepInPool && user.type === 'boss') {
+            return true;
+        }
+        return !isWinner;
+    });
+
+    const drawCount = Math.min(drawAward.perDraw, drawAward.remaining, remainingUsers.length);
+    const pickedUsers = pickRandomUsers(remainingUsers, drawCount);
+    if (pickedUsers.length === 0) {
+        showAlert(t('award_no_pick'), 'warning');
+        return;
+    }
+
+    const drawTime = new Date().toLocaleString(currentLang === 'en' ? 'en-US' : 'zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+    });
+    const drawId = Date.now() + Math.random();
+
+    pickedUsers.forEach((winner) => {
+        winners.push({
+            ...winner,
+            awardId: drawAward.id,
+            awardName: drawAward.name,
+            awardPrize: drawAward.prize,
+            winTime: drawTime,
+            drawId
+        });
+    });
+
+    drawAward.remaining = Math.max(0, drawAward.remaining - pickedUsers.length);
+    currentLottery = pickedUsers[0] || null;
+
+    const popups = $('#winnerPopups');
+    popups.empty();
+    if (pickedUsers.length === 1) {
+        $('body').removeClass('multi-winner');
+        $('#lotteryNumber').text(pickedUsers[0].number);
+        $('#lotteryName').text(pickedUsers[0].name);
+        $('#lotteryName').toggleClass('boss-name', pickedUsers[0].type === 'boss');
         $('body').addClass('winner-reveal');
         const info = $('.lottery-info');
         info.removeClass('winner-pop');
@@ -924,87 +1357,132 @@ function stopLottery() {
             void info[0].offsetWidth;
         }
         info.addClass('winner-pop');
-        // 添加中奖时间
-        const winnerWithTime = {
-            ...currentLottery,
-            winTime: new Date().toLocaleString('zh-CN', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                hour12: false
-            })
-        };
-        winners.push(winnerWithTime);
-
-        // 根据设置显示不同的提示
-        if (currentLottery.type === 'boss') {
-            if (bossKeepInPool) {
-                showAlert(`恭喜 ${currentLottery.name} (${currentLottery.number}) 中奖！老板可以继续参与抽奖。`, 'info');
-            } else {
-                showAlert(`恭喜 ${currentLottery.name} (${currentLottery.number}) 中奖！`, 'success');
-            }
-        } else {
-            showAlert(`恭喜 ${currentLottery.name} (${currentLottery.number}) 中奖！`, 'success');
-        }
-
-        saveData();
-        updateResultTable();
-        updateStats();
-
-        // 重新创建球体并恢复待机旋转
-        autoRotate = true;
-        recreateGlobeTimer = setTimeout(() => {
-            recreateGlobeTimer = null;
-            if (!isLotteryRunning) {
-                createGlobe();
-            }
-        }, 2000);
+    } else {
+        $('body').addClass('multi-winner').removeClass('winner-reveal');
+        $('#lotteryNumber').text('');
+        $('#lotteryName').text('');
+        $('#lotteryName').removeClass('boss-name');
+        pickedUsers.forEach((winner) => {
+            popups.append(`
+                <div class="winner-card ${winner.type === 'boss' ? 'boss-name' : ''}">
+                    <div class="winner-name">${winner.name}</div>
+                    <div class="winner-number">${winner.number}</div>
+                </div>
+            `);
+        });
     }
+
+    lastDraw = { drawId, awardId: drawAward.id, count: pickedUsers.length };
+    $('#undoBtn').prop('disabled', false);
+
+    if (pickedUsers.length === 1) {
+        if (pickedUsers[0].type === 'boss' && bossKeepInPool) {
+            showAlert(t('win_boss_keep', { name: pickedUsers[0].name, number: pickedUsers[0].number }), 'info');
+        } else {
+            showAlert(t('win_success', { name: pickedUsers[0].name, number: pickedUsers[0].number }), 'success');
+        }
+    } else {
+        showAlert(t('multi_winners', { name: pickedUsers[0].name, count: pickedUsers.length - 1 }), 'success');
+    }
+
+    saveData();
+    updateResultTable();
+    updateStats();
+    renderAwards();
+    updateStatsPage();
+
+    // 重新创建球体并恢复待机旋转
+    autoRotate = true;
+    recreateGlobeTimer = setTimeout(() => {
+        recreateGlobeTimer = null;
+        if (!isLotteryRunning) {
+            createGlobe();
+        }
+    }, 2000);
+    currentDrawAwardId = null;
+}
+
+function undoLastDraw() {
+    if (isLotteryRunning) {
+        alert(t('running_stop_first'));
+        return;
+    }
+    if (!lastDraw) {
+        showAlert(t('undo_empty'), 'warning');
+        return;
+    }
+    const { drawId, awardId, count } = lastDraw;
+    winners = winners.filter((winner) => winner.drawId !== drawId);
+    const award = awards.find((item) => item.id === awardId);
+    if (award) {
+        award.remaining = Math.min(award.total, award.remaining + count);
+    }
+    lastDraw = null;
+    $('#undoBtn').prop('disabled', true);
+    saveData();
+    updateResultTable();
+    updateStats();
+    renderAwards();
+    updateStatsPage();
+    currentLottery = null;
+    updateLotteryStatusText();
+    showAlert(t('undo_success'), 'success');
 }
 
 // 重置抽奖
 function resetLottery() {
     if (isLotteryRunning) {
-        alert('抽奖进行中，请先停止抽奖！');
+        alert(t('running_stop_first'));
         return;
     }
 
-    if (confirm('确定要重置所有抽奖结果吗？')) {
+    if (confirm(t('reset_confirm'))) {
         winners = [];
         currentLottery = null;
+        lastDraw = null;
+        $('#undoBtn').prop('disabled', true);
+        awards = awards.map((award) => ({
+            ...award,
+            remaining: award.total
+        }));
         autoRotate = true;
         saveData();
         updateResultTable();
         updateStats();
+        renderAwards();
+        updateStatsPage();
         createGlobe();
         $('#lotteryNumber').text('000');
-        $('#lotteryName').text('准备抽奖');
-        showAlert('抽奖结果已重置！', 'success');
+        $('#lotteryName').text(t('lottery_ready'));
+        showAlert(t('reset_success'), 'success');
     }
 }
 
 // 清空数据
 function clearData() {
     if (isLotteryRunning) {
-        alert('抽奖进行中，请先停止抽奖！');
+        alert(t('running_stop_first'));
         return;
     }
 
-    if (confirm('确定要清空所有数据吗？此操作不可恢复！')) {
+    if (confirm(t('clear_confirm'))) {
         users = [];
         winners = [];
         currentLottery = null;
+        awards = [];
+        selectedAwardId = null;
+        lastDraw = null;
+        $('#undoBtn').prop('disabled', true);
         autoRotate = true;
         saveData();
         updateTables();
         updateStats();
+        renderAwards();
+        updateStatsPage();
         createGlobe();
         $('#lotteryNumber').text('000');
-        $('#lotteryName').text('准备抽奖');
-        showAlert('所有数据已清空！', 'success');
+        $('#lotteryName').text(t('lottery_ready'));
+        showAlert(t('clear_success'), 'success');
     }
 }
 
@@ -1018,7 +1496,7 @@ function syncSettingsUI() {
 
 // 显示提示
 function showAlert(message, type) {
-    const alert = $("<div class=\"alert alert-" + type + " alert-dismissible fade show\" role=\"alert\">" + message + "<button type=\"button\" class=\"btn-close\" data-bs-dismiss=\"alert\" aria-label=\"Close\"></button></div>");
+    const alert = $("<div class=\"alert alert-" + type + " alert-dismissible fade show\" role=\"alert\">" + message + "<button type=\"button\" class=\"btn-close\" data-bs-dismiss=\"alert\" aria-label=\"" + t('button_close') + "\"></button></div>");
     $('.container').prepend(alert);
     setTimeout(() => {
         try {
