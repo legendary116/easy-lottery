@@ -5,6 +5,7 @@ let currentLottery = null;
 let isLotteryRunning = false;
 let lotteryInterval = null;
 let bossKeepInPool = true; // 老板中奖后是否留在抽奖池
+let requireNumber = false; // 是否要求录入号码
 let autoStopEnabled = false; // 是否自动停止
 let autoStopDuration = 5; // 自动停止时长（秒）
 let autoStopTimer = null; // 自动停止定时器
@@ -32,7 +33,7 @@ let lastDraw = null;
 let currentDrawAwardId = null;
 let userSearchTerm = '';
 const AWARD_IMAGE_DIR = 'images';
-const DEFAULT_AWARD_IMAGE = 'gift.jpg';
+const DEFAULT_AWARD_IMAGE = 'money.jpg';
 let pendingAwardImage = {
     type: 'preset',
     preset: DEFAULT_AWARD_IMAGE,
@@ -42,6 +43,7 @@ let winnerRevealDuration = DEFAULT_WINNER_REVEAL_DURATION;
 let winnerMultiDelay = DEFAULT_MULTI_REVEAL_DELAY;
 
 const LANG_STORAGE_KEY = 'lotteryLang';
+const NUMBER_REQUIRED_KEY = 'lotteryNumberRequired';
 let currentLang = localStorage.getItem(LANG_STORAGE_KEY) || null;
 
 function t(key, vars = {}) {
@@ -87,6 +89,7 @@ function applyI18n() {
     updateTables();
     renderAwards();
     updateStatsPage();
+    applyNumberRequirement({ rerender: false });
 }
 
 function applyWinnerAnimationSettings() {
@@ -94,6 +97,54 @@ function applyWinnerAnimationSettings() {
     root.style.setProperty('--winner-reveal-duration', `${winnerRevealDuration}s`);
     root.style.setProperty('--winner-multi-duration', `${winnerRevealDuration}s`);
     root.style.setProperty('--winner-multi-delay', `${winnerMultiDelay}s`);
+}
+
+function clearNumberData(options = {}) {
+    const { rerender = true } = options;
+    if (users.length === 0 && winners.length === 0) return;
+    let changed = false;
+    users = users.map((user) => {
+        if (user.number) {
+            changed = true;
+            return { ...user, number: '' };
+        }
+        return user;
+    });
+    winners = winners.map((winner) => {
+        if (winner.number) {
+            changed = true;
+            return { ...winner, number: '' };
+        }
+        return winner;
+    });
+    if (changed) {
+        saveData();
+        if (rerender) {
+            updateTables();
+            updateStats();
+            updateNameWall();
+        }
+    }
+}
+
+function applyNumberRequirement(options = {}) {
+    const { rerender = true } = options;
+    $('body').toggleClass('number-disabled', !requireNumber);
+
+    const searchPlaceholderKey = requireNumber ? 'search_user_placeholder' : 'search_user_placeholder_name';
+    $('#userSearchInput').attr('placeholder', t(searchPlaceholderKey));
+
+    const employeeLabelKey = requireNumber ? 'label_employee_excel' : 'label_employee_excel_no_number';
+    const bossLabelKey = requireNumber ? 'label_boss_excel' : 'label_boss_excel_no_number';
+    $('#userExcelLabel').text(t(employeeLabelKey));
+    $('#bossExcelLabel').text(t(bossLabelKey));
+
+    $('#addNumber').prop('required', requireNumber);
+    $('#editNumber').prop('required', requireNumber);
+
+    if (rerender) {
+        updateTables();
+    }
 }
 
 // 初始化
@@ -207,6 +258,17 @@ $(document).ready(function() {
         localStorage.setItem('bossKeepInPool', bossKeepInPool);
         showAlert(t('settings_saved'), 'success');
     });
+    $('#numberRequiredToggle').change(function() {
+        const nextValue = $(this).is(':checked');
+        const wasRequired = requireNumber;
+        requireNumber = nextValue;
+        localStorage.setItem(NUMBER_REQUIRED_KEY, requireNumber);
+        if (!requireNumber && wasRequired) {
+            clearNumberData();
+        }
+        applyNumberRequirement();
+        showAlert(t('settings_saved'), 'success');
+    });
     $('#autoStopEnabled').change(function() {
         autoStopEnabled = $(this).is(':checked');
         localStorage.setItem('autoStopEnabled', autoStopEnabled);
@@ -296,6 +358,7 @@ function loadData() {
     users = JSON.parse(localStorage.getItem('lotteryUsers')) || [];
     winners = JSON.parse(localStorage.getItem('lotteryWinners')) || [];
     bossKeepInPool = localStorage.getItem('bossKeepInPool') !== 'false'; // 默认为true
+    requireNumber = localStorage.getItem(NUMBER_REQUIRED_KEY) === 'true'; // 默认为false
     autoStopEnabled = localStorage.getItem('autoStopEnabled') === 'true';
     autoStopDuration = parseInt(localStorage.getItem('autoStopDuration')) || 5;
     const savedRevealDuration = parseFloat(localStorage.getItem('winnerRevealDuration'));
@@ -308,6 +371,9 @@ function loadData() {
         : DEFAULT_MULTI_REVEAL_DELAY;
     awards = (JSON.parse(localStorage.getItem('lotteryAwards')) || []).map(normalizeAward);
     selectedAwardId = localStorage.getItem('selectedAwardId') || null;
+    if (!requireNumber) {
+        clearNumberData({ rerender: false });
+    }
 }
 
 // 保存数据
@@ -339,15 +405,23 @@ function updateUserTable() {
     const filteredUsers = userSearchTerm
         ? users.filter((user) => {
             const name = (user.name || '').toLowerCase();
-            const number = (user.number || '').toLowerCase();
-            return name.includes(userSearchTerm) || number.includes(userSearchTerm);
+            if (name.includes(userSearchTerm)) {
+                return true;
+            }
+            if (requireNumber) {
+                const number = (user.number || '').toLowerCase();
+                return number.includes(userSearchTerm);
+            }
+            return false;
         })
         : users;
 
     filteredUsers.forEach((user, index) => {
         const tr = $('<tr></tr>');
         tr.append($('<td></td>').text(user.name));
-        tr.append($('<td></td>').text(user.number));
+        if (requireNumber) {
+            tr.append($('<td data-number-field="true"></td>').text(user.number));
+        }
 
         const typeBadge = user.type === 'boss'
             ? $(`<span class="badge badge-boss"><i class="fa fa-star"></i> ${t('type_boss')}</span>`)
@@ -395,9 +469,13 @@ function updateResultTable() {
                     </div>
                     <div class="result-card-body">
                         <div class="result-winners-list">
-                            ${drawWinners.map((winner, index) => `
+                            ${drawWinners.map((winner) => {
+                                const numberHtml = requireNumber
+                                    ? `<span class="result-winner-number" data-number-field="true">${winner.number}</span>`
+                                    : '';
+                                return `
                                 <div class="result-winner-item">
-                                    <span class="result-winner-number">${winner.number}</span>
+                                    ${numberHtml}
                                     <span class="result-winner-name">
                                         ${winner.name}
                                         ${winner.type === 'boss' && bossKeepInPool ? `<span class="badge badge-boss-win">${t('boss_win_note')}</span>` : ''}
@@ -406,7 +484,8 @@ function updateResultTable() {
                                         ${winner.type === 'boss' ? `<i class="fa fa-star"></i>` : ''}
                                     </span>
                                 </div>
-                            `).join('')}
+                            `;
+                            }).join('')}
                         </div>
                     </div>
                     <div class="result-card-footer">
@@ -441,7 +520,9 @@ function updateResultTable() {
                 nameCell.append(` <span class="badge badge-boss-win">${t('boss_win_note')}</span>`);
             }
             tr.append(nameCell);
-            tr.append($('<td></td>').text(winner.number));
+            if (requireNumber) {
+                tr.append($('<td data-number-field="true"></td>').text(winner.number));
+            }
 
             const typeBadge = winner.type === 'boss'
                 ? $(`<span class="badge badge-boss"><i class="fa fa-star"></i> ${t('type_boss')}</span>`)
@@ -513,7 +594,9 @@ function updateStatsPage() {
             nameCell.append(` <span class="badge badge-boss-win">${t('boss_win_note')}</span>`);
         }
         tr.append(nameCell);
-        tr.append($('<td></td>').text(winner.number));
+        if (requireNumber) {
+            tr.append($('<td data-number-field="true"></td>').text(winner.number));
+        }
         const typeLabel = winner.type === 'boss' ? t('type_boss') : t('type_user');
         tr.append($('<td></td>').text(typeLabel));
         tr.append($('<td></td>').text(winner.awardName || '-'));
@@ -531,25 +614,34 @@ function exportWinnersToExcel() {
 
     const headers = [
         t('table_index'),
-        t('table_name'),
-        t('table_number'),
+        t('table_name')
+    ];
+    if (requireNumber) {
+        headers.push(t('table_number'));
+    }
+    headers.push(
         t('table_type'),
         t('table_award'),
         t('table_prize'),
         t('table_time')
-    ];
+    );
 
     const data = winners.map((winner, index) => {
         const typeLabel = winner.type === 'boss' ? t('type_boss') : t('type_user');
-        return [
+        const row = [
             index + 1,
-            winner.name,
-            winner.number,
+            winner.name
+        ];
+        if (requireNumber) {
+            row.push(winner.number);
+        }
+        row.push(
             typeLabel,
             winner.awardName || '-',
             winner.awardPrize || '-',
             winner.winTime || '-'
-        ];
+        );
+        return row;
     });
 
     const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
@@ -978,11 +1070,11 @@ function addUser(e) {
     e.preventDefault();
 
     const name = $('#addName').val();
-    const number = $('#addNumber').val();
+    const number = requireNumber ? $('#addNumber').val() : '';
     const type = $('#addType').val();
 
     // 检查号码是否重复
-    if (users.some(user => user.number === number)) {
+    if (requireNumber && users.some(user => user.number === number)) {
         alert(t('number_exists'));
         return;
     }
@@ -1018,11 +1110,16 @@ function editUser(index) {
 function saveEdit() {
     const index = $('#editId').val();
     const name = $('#editName').val();
-    const number = $('#editNumber').val();
+    const inputNumber = $('#editNumber').val();
+    const number = requireNumber ? inputNumber : (users[index].number || '');
     const type = $('#editType').val();
 
     // 检查号码是否重复（排除自身）
-    if (users.some((user, i) => i !== parseInt(index) && user.number === number)) {
+    if (requireNumber && !number) {
+        showAlert(t('number_required_alert'), 'warning');
+        return;
+    }
+    if (requireNumber && users.some((user, i) => i !== parseInt(index) && user.number === number)) {
         alert(t('number_exists'));
         return;
     }
@@ -1141,7 +1238,7 @@ function importUsersFromJson(jsonData, type) {
     });
 
     // 如果找不到匹配的列名，尝试通过数据内容智能判断
-    if (!nameKey || !numberKey) {
+    if (!nameKey || (requireNumber && !numberKey)) {
         console.log('列名匹配失败，尝试智能判断...');
 
         // 遍历所有列，统计每列的数据特征
@@ -1165,7 +1262,7 @@ function importUsersFromJson(jsonData, type) {
         const numericColumn = columnStats.find(col => col.numericRatio > 0.5);
         const chineseColumn = columnStats.find(col => col.chineseRatio > 0.5);
 
-        if (numericColumn && !numberKey) {
+        if (numericColumn && !numberKey && requireNumber) {
             numberKey = numericColumn.key;
             console.log('通过数字特征识别号码列:', numberKey);
         }
@@ -1179,7 +1276,7 @@ function importUsersFromJson(jsonData, type) {
             nameKey = keys[0];
             console.log('使用第一列作为姓名列:', nameKey);
         }
-        if (!numberKey && keys.length > 1) {
+        if (!numberKey && keys.length > 1 && requireNumber) {
             numberKey = keys[1];
             console.log('使用第二列作为号码列:', numberKey);
         }
@@ -1188,33 +1285,43 @@ function importUsersFromJson(jsonData, type) {
     console.log('最终识别的列:', { nameKey, numberKey, allKeys: keys });
 
     // 验证识别结果
-    if (!nameKey || !numberKey) {
+    if (!nameKey) {
+        showAlert(t('excel_name_missing'), 'danger');
+        return;
+    }
+
+    if (requireNumber && !numberKey) {
         showAlert(t('excel_columns_missing'), 'danger');
         return;
     }
 
-    if (nameKey === numberKey) {
+    if (requireNumber && nameKey === numberKey) {
         showAlert(t('excel_same_column'), 'danger');
         return;
     }
 
+    if (!requireNumber && nameKey === numberKey) {
+        numberKey = null;
+    }
+
     jsonData.forEach(row => {
         const name = row[nameKey] || '';
-        const number = row[numberKey] || '';
+        const number = numberKey ? (row[numberKey] || '') : '';
+        const nameText = String(name).trim();
+        const numberText = String(number).trim();
 
-        if (name && number) {
-            // 检查号码是否重复
-            if (!users.some(user => user.number === number)) {
-                users.push({
-                    id: Date.now() + Math.random(),
-                    name: String(name).trim(),
-                    number: String(number).trim(),
-                    type: type
-                });
-                importedCount++;
-            } else {
+        if (nameText && (requireNumber ? numberText : true)) {
+            if (requireNumber && users.some(user => user.number === numberText)) {
                 duplicateCount++;
+                return;
             }
+            users.push({
+                id: Date.now() + Math.random(),
+                name: nameText,
+                number: numberKey ? numberText : '',
+                type: type
+            });
+            importedCount++;
         } else {
             skippedEmpty++;
         }
@@ -1222,7 +1329,8 @@ function importUsersFromJson(jsonData, type) {
 
     // 如果全部都是空数据，给出提示
     if (importedCount === 0 && duplicateCount === 0) {
-        showAlert(t('excel_no_valid'), 'warning');
+        const noValidKey = requireNumber ? 'excel_no_valid' : 'excel_no_valid_name';
+        showAlert(t(noValidKey), 'warning');
         return;
     }
 
@@ -1649,10 +1757,13 @@ function stopLottery() {
     
     pickedUsers.forEach((winner, index) => {
         const delay = (index * winnerMultiDelay).toFixed(2);
+        const numberHtml = requireNumber
+            ? `<div class="winner-number" data-number-field="true">${winner.number}</div>`
+            : '';
         popups.append(`
             <div class="winner-card winner-slide ${winner.type === 'boss' ? 'boss-name' : ''}" style="animation-delay:${delay}s;">
                 <div class="winner-name">${winner.name}</div>
-                <div class="winner-number">${winner.number}</div>
+                ${numberHtml}
             </div>
         `);
     });
@@ -1784,11 +1895,13 @@ function clearData() {
 // 同步设置UI
 function syncSettingsUI() {
     $('#bossKeepInPool').prop('checked', bossKeepInPool);
+    $('#numberRequiredToggle').prop('checked', requireNumber);
     $('#autoStopEnabled').prop('checked', autoStopEnabled);
     $('#autoStopDuration').val(autoStopDuration);
     $('#autoStopDurationContainer').toggle(autoStopEnabled);
     $('#winnerRevealDuration').val(winnerRevealDuration);
     $('#winnerMultiDelay').val(winnerMultiDelay);
+    applyNumberRequirement({ rerender: false });
 }
 
 // 显示提示

@@ -150,7 +150,7 @@
                                         <tr>
                                             <th data-i18n="table_index">序号</th>
                                             <th data-i18n="table_name">姓名</th>
-                                            <th data-i18n="table_number">号码</th>
+                                            <th data-i18n="table_number" data-number-field="true">号码</th>
                                             <th data-i18n="table_type">类型</th>
                                             <th data-i18n="table_award">奖项</th>
                                             <th data-i18n="table_prize">奖品</th>
@@ -170,11 +170,11 @@
                                 <div class="import-area">
                                     <h5><i class="fa fa-upload" aria-hidden="true"></i> <span data-i18n="manage_import">Excel导入</span></h5>
                                     <div class="mb-3">
-                                        <label for="userExcel" class="form-label" data-i18n="label_employee_excel">员工名单 (姓名, 号码)</label>
+                                        <label for="userExcel" class="form-label" id="userExcelLabel" data-i18n="label_employee_excel">员工名单 (姓名, 号码)</label>
                                         <input class="form-control" type="file" id="userExcel" accept=".xlsx, .xls">
                                     </div>
                                     <div class="mb-3">
-                                        <label for="bossExcel" class="form-label" data-i18n="label_boss_excel">老板名单 (姓名, 号码)</label>
+                                        <label for="bossExcel" class="form-label" id="bossExcelLabel" data-i18n="label_boss_excel">老板名单 (姓名, 号码)</label>
                                         <input class="form-control" type="file" id="bossExcel" accept=".xlsx, .xls">
                                     </div>
                                 </div>
@@ -186,7 +186,7 @@
                                             <div class="col-md-5">
                                                 <input type="text" class="form-control" id="addName" placeholder="姓名" data-i18n-placeholder="label_name" required>
                                             </div>
-                                            <div class="col-md-5">
+                                            <div class="col-md-5" data-number-field="true">
                                                 <input type="text" class="form-control" id="addNumber" placeholder="号码" data-i18n-placeholder="label_number" required>
                                             </div>
                                             <div class="col-md-2">
@@ -213,7 +213,7 @@
                                         <thead>
                                             <tr>
                                                 <th data-i18n="table_name">姓名</th>
-                                                <th data-i18n="table_number">号码</th>
+                                                <th data-i18n="table_number" data-number-field="true">号码</th>
                                                 <th data-i18n="table_type">类型</th>
                                                 <th data-i18n="table_actions">操作</th>
                                             </tr>
@@ -252,7 +252,7 @@
                                             <div class="col-md-6 mb-2">
                                                 <label class="form-label" for="awardImagePreset" data-i18n="award_image_preset">Default Image</label>
                                                 <select class="form-select" id="awardImagePreset">
-                                                    <option value="money.jpg" data-i18n="award_image_money">Money</option>
+                                                    <option value="money.jpg" data-i18n="award_image_money" selected>Money</option>
                                                     <option value="phone.jpg" data-i18n="award_image_phone">Phone</option>
                                                     <option value="gift.jpg" data-i18n="award_image_gift">Gift</option>
                                                 </select>
@@ -326,7 +326,7 @@
                                         <tr>
                                             <th data-i18n="table_index">序号</th>
                                             <th data-i18n="table_name">姓名</th>
-                                            <th data-i18n="table_number">号码</th>
+                                            <th data-i18n="table_number" data-number-field="true">号码</th>
                                             <th data-i18n="table_type">类型</th>
                                             <th data-i18n="table_award">奖项</th>
                                             <th data-i18n="table_prize">奖品</th>
@@ -352,6 +352,14 @@
                                         </label>
                                     </div>
                                     <p class="text-sm text-muted mb-3" data-i18n="boss_keep_desc">When enabled, bosses remain in the pool after winning; when disabled, they are removed.</p>
+
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" id="numberRequiredToggle" style="width: 50px; height: 25px;">
+                                        <label class="form-check-label" for="numberRequiredToggle">
+                                            <span data-i18n="number_required">录入人员号码</span>
+                                        </label>
+                                    </div>
+                                    <p class="text-sm text-muted mb-3" data-i18n="number_required_desc">开启后录入/导入需包含号码，相关列表也会展示号码。</p>
 
                                     <div class="mb-3">
                                         <label class="form-label" data-i18n="stop_mode">Stop Mode</label>
@@ -419,7 +427,7 @@
                             <label for="editName" class="form-label" data-i18n="label_name">姓名</label>
                             <input type="text" class="form-control" id="editName" required>
                         </div>
-                        <div class="mb-3">
+                        <div class="mb-3" data-number-field="true">
                             <label for="editNumber" class="form-label" data-i18n="label_number">号码</label>
                             <input type="text" class="form-control" id="editNumber" required>
                         </div>
@@ -448,12 +456,6 @@
     <script src="app.js"></script>
 </body>
 </html>
-
-
-
-
-
-
 
 
 

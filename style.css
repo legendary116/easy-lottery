@@ -1737,3 +1737,9 @@ body.winner-reveal .lottery-info.winner-slide {
         opacity: 0.6;
     }
 }
+
+body.number-disabled [data-number-field],
+body.number-disabled .result-winner-number,
+body.number-disabled .winner-number {
+    display: none !important;
+}
