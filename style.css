@@ -93,6 +93,10 @@ body {
     white-space: nowrap;
 }
 
+.fullscreen-title.is-empty {
+    display: none;
+}
+
 .lottery-layout {
     width: 100%;
     display: grid;
@@ -1509,31 +1513,31 @@ body.fullscreen-open .inline-result-section {
 }
 
 body.fullscreen-open .globe-name {
-    color: #fff3c4;
-    background: rgba(120, 0, 24, 0.55);
-    border-color: rgba(255, 214, 10, 0.55);
+    color: #bff5ff;
+    background: rgba(6, 22, 45, 0.65);
+    border-color: rgba(0, 212, 255, 0.55);
     box-shadow:
-        0 0 12px rgba(255, 214, 10, 0.25),
-        0 0 26px rgba(120, 0, 24, 0.35),
-        inset 0 0 12px rgba(255, 214, 10, 0.12);
-    text-shadow: 0 0 10px rgba(255, 214, 10, 0.6);
+        0 0 14px rgba(0, 212, 255, 0.35),
+        0 0 28px rgba(0, 120, 255, 0.35),
+        inset 0 0 14px rgba(0, 212, 255, 0.15);
+    text-shadow: 0 0 10px rgba(0, 212, 255, 0.7);
 }
 
 body.fullscreen-open .globe-name:hover {
-    background: rgba(160, 20, 40, 0.7);
+    background: rgba(0, 212, 255, 0.22);
     box-shadow:
-        0 0 18px rgba(255, 214, 10, 0.45),
-        0 0 36px rgba(160, 20, 40, 0.45),
-        inset 0 0 18px rgba(255, 214, 10, 0.2);
+        0 0 20px rgba(0, 212, 255, 0.55),
+        0 0 40px rgba(0, 120, 255, 0.45),
+        inset 0 0 18px rgba(0, 212, 255, 0.25);
 }
 
 body.fullscreen-open .globe-name.boss-name {
-    color: #ffd966;
-    background: rgba(180, 20, 40, 0.7);
-    border-color: rgba(255, 214, 10, 0.85);
+    color: #ffe08a;
+    background: rgba(10, 35, 55, 0.75);
+    border-color: rgba(255, 214, 10, 0.8);
     box-shadow:
         0 0 16px rgba(255, 214, 10, 0.45),
-        0 0 30px rgba(180, 20, 40, 0.5),
+        0 0 30px rgba(0, 120, 255, 0.35),
         inset 0 0 14px rgba(255, 214, 10, 0.2);
     text-shadow: 0 0 12px rgba(255, 214, 10, 0.75);
 }
@@ -1722,6 +1726,27 @@ body.winner-show .winner-overlay {
     display: flex;
     flex-direction: column;
     gap: 6px;
+}
+
+body.fullscreen-open .winner-overlay-award {
+    flex-wrap: nowrap;
+    gap: 18px;
+}
+
+body.fullscreen-open .winner-overlay-award-text {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 18px;
+}
+
+body.fullscreen-open .winner-overlay-award-name {
+    white-space: nowrap;
+}
+
+body.fullscreen-open .winner-overlay-award-prize {
+    font-size: 5rem;
+    font-weight: 700;
+    white-space: nowrap;
 }
 
 .winner-overlay-award-name {

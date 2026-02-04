@@ -112,6 +112,75 @@ function ensureFullscreenIfRunning() {
     }
 }
 
+function buildUserSignature(user) {
+    const name = String(user?.name || '').trim().toLowerCase();
+    const number = String(user?.number || '').trim().toLowerCase();
+    const type = String(user?.type || '').trim().toLowerCase();
+    if (!name && !number && !type) return '';
+    return `${name}||${number}||${type}`;
+}
+
+function generateUniqueUserId(usedIds) {
+    let id = Date.now() + Math.random();
+    while (usedIds.has(id)) {
+        id = Date.now() + Math.random();
+    }
+    usedIds.add(id);
+    return id;
+}
+
+function ensureUniqueUserIds() {
+    let changed = false;
+    const usedIds = new Set();
+    const normalizedUsers = users.map((user) => ({ ...user }));
+
+    normalizedUsers.forEach((user) => {
+        const id = user.id;
+        const invalid = id === undefined || id === null || id === '' || Number.isNaN(id);
+        if (invalid || usedIds.has(id)) {
+            user.id = generateUniqueUserId(usedIds);
+            changed = true;
+        } else {
+            usedIds.add(id);
+        }
+    });
+
+    if (changed) {
+        users = normalizedUsers;
+    }
+
+    const signatureMap = new Map();
+    users.forEach((user) => {
+        const signature = buildUserSignature(user);
+        if (!signature) return;
+        if (!signatureMap.has(signature)) {
+            signatureMap.set(signature, []);
+        }
+        signatureMap.get(signature).push(user.id);
+    });
+
+    const signatureCursor = new Map();
+    const updatedWinners = winners.map((winner) => {
+        const signature = buildUserSignature(winner);
+        const list = signature ? signatureMap.get(signature) : null;
+        if (!list || list.length === 0) return winner;
+        const index = signatureCursor.get(signature) || 0;
+        const nextId = list[Math.min(index, list.length - 1)];
+        signatureCursor.set(signature, index + 1);
+        if (winner.id !== nextId) {
+            changed = true;
+            return { ...winner, id: nextId };
+        }
+        return winner;
+    });
+
+    if (changed) {
+        winners = updatedWinners;
+    }
+
+    return changed;
+}
+
 function clearNumberData(options = {}) {
     const { rerender = true } = options;
     if (users.length === 0 && winners.length === 0) return;
@@ -170,10 +239,15 @@ function applyFullscreenAwardListVisibility() {
 function applyFullscreenTitle() {
     const title = (fullscreenTitle || '').trim();
     const fallback = t('app_title');
-    $('#fullscreenTitle').text(title || fallback);
+    const titleEl = $('#fullscreenTitle');
+    if (title) {
+        titleEl.text(title).removeClass('is-empty');
+    } else {
+        titleEl.text('').addClass('is-empty');
+    }
     const input = $('#fullscreenTitleInput');
     if (input.length) {
-        input.val(title);
+        input.val(fullscreenTitle || '');
         input.attr('placeholder', fallback);
     }
 }
@@ -454,6 +528,10 @@ function loadData() {
         : DEFAULT_MULTI_REVEAL_DELAY;
     awards = (JSON.parse(localStorage.getItem('lotteryAwards')) || []).map(normalizeAward);
     selectedAwardId = localStorage.getItem('selectedAwardId') || null;
+    const fixed = ensureUniqueUserIds();
+    if (fixed) {
+        saveData();
+    }
     if (!requireNumber) {
         clearNumberData({ rerender: false });
     }
@@ -1239,11 +1317,28 @@ function pickRandomUsers(list, count) {
     const picked = [];
     const max = Math.min(count, pool.length);
     for (let i = 0; i < max; i++) {
-        const index = Math.floor(Math.random() * pool.length);
+        const index = getCryptoRandomInt(pool.length);
         picked.push(pool[index]);
         pool.splice(index, 1);
     }
     return picked;
+}
+
+function getCryptoRandomInt(max) {
+    if (!Number.isFinite(max) || max <= 0) return 0;
+    const cryptoObj = window.crypto || window.msCrypto;
+    if (!cryptoObj || !cryptoObj.getRandomValues) {
+        return Math.floor(Math.random() * max);
+    }
+    const range = 0x100000000; // 2^32
+    const limit = Math.floor(range / max) * max;
+    const buffer = new Uint32Array(1);
+    let value = 0;
+    do {
+        cryptoObj.getRandomValues(buffer);
+        value = buffer[0];
+    } while (value >= limit);
+    return value % max;
 }
 
 // 添加用户
@@ -1260,8 +1355,9 @@ function addUser(e) {
         return;
     }
 
+    const usedIds = new Set(users.map(user => user.id));
     const user = {
-        id: Date.now(),
+        id: generateUniqueUserId(usedIds),
         name: name,
         number: number,
         type: type
@@ -1485,6 +1581,7 @@ function importUsersFromJson(jsonData, type) {
         numberKey = null;
     }
 
+    const usedIds = new Set(users.map(user => user.id));
     jsonData.forEach(row => {
         const name = row[nameKey] || '';
         const number = numberKey ? (row[numberKey] || '') : '';
@@ -1497,7 +1594,7 @@ function importUsersFromJson(jsonData, type) {
                 return;
             }
             users.push({
-                id: Date.now() + Math.random(),
+                id: generateUniqueUserId(usedIds),
                 name: nameText,
                 number: numberKey ? numberText : '',
                 type: type
