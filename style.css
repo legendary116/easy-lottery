@@ -618,6 +618,10 @@ body.fullscreen-open .lottery-area {
 body.fullscreen-open .particle {
     position: fixed;
     top: 0;
+    background: radial-gradient(circle, rgba(255, 214, 10, 1) 0%, rgba(255, 80, 0, 0.15) 70%);
+    box-shadow:
+        0 0 8px rgba(255, 214, 10, 0.9),
+        0 0 16px rgba(255, 80, 0, 0.5);
 }
 
 body.fullscreen-open .globe {
@@ -661,12 +665,22 @@ body.fullscreen-open {
     padding: 0;
     overflow: hidden;
     overscroll-behavior: none;
-    background: radial-gradient(circle at 20% 20%, #ffd1d1 0%, #c7002f 38%, #4c0012 100%);
+    background-image:
+        linear-gradient(160deg, rgba(30, 0, 8, 0.45), rgba(120, 0, 24, 0.55)),
+        url('images/bg1.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
     color: #ffe9b0;
 }
 
 html.fullscreen-open {
-    background: radial-gradient(circle at 20% 20%, #ffd1d1 0%, #c7002f 38%, #4c0012 100%);
+    background-image:
+        linear-gradient(160deg, rgba(30, 0, 8, 0.45), rgba(120, 0, 24, 0.55)),
+        url('images/bg1.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
     overflow: hidden;
 }
 
@@ -759,8 +773,13 @@ body.fullscreen-open .winner-overlay {
 }
 
 body.fullscreen-open .winner-overlay-backdrop {
-    background: radial-gradient(circle at top, rgba(255, 214, 10, 0.18), rgba(120, 0, 24, 0.92) 55%, rgba(60, 0, 12, 0.96));
-    backdrop-filter: blur(10px);
+    background-image:
+        linear-gradient(180deg, rgba(20, 0, 8, 0.32), rgba(60, 0, 12, 0.45)),
+        url('images/bg4.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    backdrop-filter: blur(4px);
 }
 
 body.fullscreen-open .winner-overlay-title {
@@ -788,22 +807,33 @@ body.fullscreen-open .winner-overlay-award-image {
 }
 
 body.fullscreen-open .winner-overlay .winner-popups {
-    max-width: 1800px;
+    max-width: min(1800px, 92vw);
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 10px;
+}
+
+body.fullscreen-open .winner-overlay .winner-popups.winner-popups-centered {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 8px;
+}
+
+body.fullscreen-open .winner-overlay .winner-popups.winner-popups-centered .winner-card {
+    flex: 0 0 calc(20% - 10px);
 }
 
 body.fullscreen-open .winner-card {
-    min-width: 140px;
+    min-width: 0;
     max-width: none;
-    padding: 10px 12px;
-    background: linear-gradient(135deg, rgba(199, 0, 47, 0.85), rgba(140, 0, 28, 0.9));
-    border: 1px solid rgba(255, 214, 10, 0.45);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
-    width: auto;
-    flex: 0 0 auto;
+    padding: 8px 6px;
+    background: transparent;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+body.fullscreen-open .winner-card.winner-slide {
+    animation: winnerCardSlideIn var(--winner-multi-duration, 2s) linear forwards;
 }
 
 body.fullscreen-open .winner-card .winner-name {
@@ -811,11 +841,12 @@ body.fullscreen-open .winner-card .winner-name {
     color: #ffe38a;
     text-overflow: clip;
     overflow: visible;
+    max-width: none;
+    text-align: center;
 }
 
 body.fullscreen-open .winner-card .winner-number {
-    font-size: 1.1rem;
-    color: #fff1c4;
+    display: none;
 }
 
 body.fullscreen-open .winner-overlay-close {
@@ -1476,6 +1507,36 @@ body.fullscreen-open .inline-result-section {
     text-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
     font-size: 1.5rem;
 }
+
+body.fullscreen-open .globe-name {
+    color: #fff3c4;
+    background: rgba(120, 0, 24, 0.55);
+    border-color: rgba(255, 214, 10, 0.55);
+    box-shadow:
+        0 0 12px rgba(255, 214, 10, 0.25),
+        0 0 26px rgba(120, 0, 24, 0.35),
+        inset 0 0 12px rgba(255, 214, 10, 0.12);
+    text-shadow: 0 0 10px rgba(255, 214, 10, 0.6);
+}
+
+body.fullscreen-open .globe-name:hover {
+    background: rgba(160, 20, 40, 0.7);
+    box-shadow:
+        0 0 18px rgba(255, 214, 10, 0.45),
+        0 0 36px rgba(160, 20, 40, 0.45),
+        inset 0 0 18px rgba(255, 214, 10, 0.2);
+}
+
+body.fullscreen-open .globe-name.boss-name {
+    color: #ffd966;
+    background: rgba(180, 20, 40, 0.7);
+    border-color: rgba(255, 214, 10, 0.85);
+    box-shadow:
+        0 0 16px rgba(255, 214, 10, 0.45),
+        0 0 30px rgba(180, 20, 40, 0.5),
+        inset 0 0 14px rgba(255, 214, 10, 0.2);
+    text-shadow: 0 0 12px rgba(255, 214, 10, 0.75);
+}
 .lottery-number {
     font-size: 120px;
     font-weight: bold;
@@ -2018,17 +2079,11 @@ body.winner-reveal .lottery-info.winner-slide {
 /* 能量环效果 */
 .lottery-area::after {
     content: '';
-    position: absolute;
-    width: 350px;
-    height: 350px;
-    border: 2px solid rgba(0, 212, 255, 0.2);
-    border-radius: 50%;
-    top: 50%;
-    left: 50%;
-    margin-top: -175px;
-    margin-left: -175px;
-    animation: ringPulse 3s ease-in-out infinite;
-    pointer-events: none;
+    display: none;
+}
+
+body.fullscreen-open .lottery-area::after {
+    display: none;
 }
 
 @keyframes ringPulse {

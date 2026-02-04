@@ -1954,6 +1954,7 @@ function stopLottery() {
             </div>
         `);
     });
+    popups.toggleClass('winner-popups-centered', pickedUsers.length <= 5);
 
     lastDraw = { drawId, awardId: drawAward.id, count: pickedUsers.length };
     $('#undoBtn').prop('disabled', false);
