@@ -140,13 +140,13 @@ body.fullscreen-open .fullscreen-brand {
     position: fixed;
     top: 20px;
     left: 24px;
-    padding: 10px 16px;
-    border-radius: 18px;
-    background: linear-gradient(135deg, rgba(199, 0, 47, 0.6), rgba(120, 0, 24, 0.55));
-    border: 1px solid rgba(255, 214, 10, 0.45);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35), inset 0 0 16px rgba(255, 214, 10, 0.2);
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
+    border: none;
+    box-shadow: none;
     z-index: 40;
-    backdrop-filter: blur(6px);
+    backdrop-filter: none;
 }
 
 body.fullscreen-open .fullscreen-brand img {
@@ -156,8 +156,8 @@ body.fullscreen-open .fullscreen-brand img {
 body.fullscreen-open .fullscreen-title {
     font-size: 2.4rem;
     font-weight: 700;
-    color: #fff2b0;
-    text-shadow: 0 0 12px rgba(255, 214, 10, 0.35);
+    color: #dfe7ff;
+    text-shadow: 0 0 12px rgba(90, 190, 255, 0.35);
 }
 
 body.fullscreen-open.fullscreen-award-hidden .lottery-right {
@@ -615,22 +615,23 @@ body.fullscreen-open .lottery-controls {
 body.fullscreen-open .lottery-area {
     width: min(1400px, 100%);
     min-height: calc(100vh - 200px);
-    background: radial-gradient(circle at center, rgba(255, 214, 10, 0.18), rgba(199, 0, 47, 0.18), transparent 70%);
+    background: radial-gradient(circle at center, rgba(80, 140, 255, 0.12), rgba(10, 25, 45, 0.12), transparent 70%);
     box-shadow: none;
 }
 
 body.fullscreen-open .particle {
     position: fixed;
     top: 0;
-    background: radial-gradient(circle, rgba(255, 214, 10, 1) 0%, rgba(255, 80, 0, 0.15) 70%);
+    background: radial-gradient(circle, rgba(126, 220, 255, 1) 0%, rgba(62, 140, 255, 0.2) 70%);
     box-shadow:
-        0 0 8px rgba(255, 214, 10, 0.9),
-        0 0 16px rgba(255, 80, 0, 0.5);
+        0 0 8px rgba(126, 220, 255, 0.75),
+        0 0 18px rgba(62, 140, 255, 0.45);
 }
 
 body.fullscreen-open .globe {
     width: min(80vh, 80vw);
     height: min(80vh, 80vw);
+    box-shadow: none;
 }
 
 body.fullscreen-open .lottery-info {
@@ -669,56 +670,23 @@ body.fullscreen-open {
     padding: 0;
     overflow: hidden;
     overscroll-behavior: none;
-    background-image:
-        linear-gradient(160deg, rgba(30, 0, 8, 0.45), rgba(120, 0, 24, 0.55)),
-        url('images/bg1.jpg');
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
-    color: #ffe9b0;
+    background: radial-gradient(circle at 20% 10%, #1a2233 0%, #0b1120 45%, #05070d 100%);
+    color: #dfe7ff;
 }
 
 html.fullscreen-open {
-    background-image:
-        linear-gradient(160deg, rgba(30, 0, 8, 0.45), rgba(120, 0, 24, 0.55)),
-        url('images/bg1.jpg');
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
+    background: radial-gradient(circle at 20% 10%, #1a2233 0%, #0b1120 45%, #05070d 100%);
     overflow: hidden;
 }
 
 body.fullscreen-open::before {
     content: '';
-    position: fixed;
-    inset: 0;
-    background-image:
-        radial-gradient(120px 120px at 10% 15%, rgba(255, 214, 10, 0.35), transparent 70%),
-        radial-gradient(160px 160px at 90% 20%, rgba(255, 214, 10, 0.28), transparent 70%),
-        radial-gradient(90px 90px at 80% 80%, rgba(255, 214, 10, 0.25), transparent 65%),
-        radial-gradient(140px 140px at 20% 85%, rgba(255, 214, 10, 0.22), transparent 70%),
-        radial-gradient(2px 2px at 20px 30px, rgba(255, 255, 255, 0.7), transparent),
-        radial-gradient(2px 2px at 120px 160px, rgba(255, 255, 255, 0.6), transparent),
-        radial-gradient(1px 1px at 220px 80px, rgba(255, 255, 255, 0.8), transparent);
-    background-size: 600px 360px;
-    background-position: 0 0;
-    background-repeat: repeat;
-    animation: twinkle 6s ease-in-out infinite;
-    pointer-events: none;
-    z-index: 0;
+    display: none;
 }
 
 body.fullscreen-open::after {
     content: '';
-    position: fixed;
-    inset: 0;
-    background-image:
-        radial-gradient(50% 50% at 0% 0%, rgba(255, 215, 0, 0.12), transparent 60%),
-        radial-gradient(50% 50% at 100% 0%, rgba(255, 215, 0, 0.12), transparent 60%),
-        radial-gradient(50% 50% at 0% 100%, rgba(255, 215, 0, 0.1), transparent 60%),
-        radial-gradient(50% 50% at 100% 100%, rgba(255, 215, 0, 0.1), transparent 60%);
-    pointer-events: none;
-    z-index: 0;
+    display: none;
 }
 
 body.fullscreen-open .lottery-fullscreen {
@@ -777,12 +745,7 @@ body.fullscreen-open .winner-overlay {
 }
 
 body.fullscreen-open .winner-overlay-backdrop {
-    background-image:
-        linear-gradient(180deg, rgba(20, 0, 8, 0.32), rgba(60, 0, 12, 0.45)),
-        url('images/bg4.jpg');
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
+    background: radial-gradient(circle at 20% 10%, rgba(140, 200, 255, 0.95), rgba(58, 120, 200, 0.96));
     backdrop-filter: blur(4px);
 }
 
@@ -790,24 +753,24 @@ body.fullscreen-open .winner-overlay-title {
     font-size: 6rem;
     letter-spacing: 12px;
     color: #ffd966;
-    text-shadow: 0 0 18px rgba(255, 214, 10, 0.6), 0 0 36px rgba(255, 80, 0, 0.4);
+    text-shadow: 0 0 18px rgba(255, 214, 10, 0.6), 0 0 36px rgba(255, 160, 40, 0.4);
 }
 
 body.fullscreen-open .winner-overlay-award-name {
     font-size: 3.5rem;
-    color: #fff2b0;
+    color: #ffd166;
 }
 
 body.fullscreen-open .winner-overlay-award-prize {
     font-size: 2.5rem;
-    color: #ffe08a;
+    color: #f4b942;
 }
 
 body.fullscreen-open .winner-overlay-award-image {
     width: 120px;
     height: 120px;
     border-radius: 22px;
-    border-color: rgba(255, 214, 10, 0.6);
+    border-color: rgba(120, 200, 255, 0.6);
 }
 
 body.fullscreen-open .winner-overlay .winner-popups {
@@ -842,7 +805,7 @@ body.fullscreen-open .winner-card.winner-slide {
 
 body.fullscreen-open .winner-card .winner-name {
     font-size: 3.6rem;
-    color: #ffe38a;
+    color: #ffffff;
     text-overflow: clip;
     overflow: visible;
     max-width: none;
@@ -857,9 +820,9 @@ body.fullscreen-open .winner-overlay-close {
     width: 60px;
     height: 60px;
     font-size: 1.8rem;
-    border-color: rgba(255, 214, 10, 0.6);
-    color: #ffe08a;
-    background: rgba(120, 0, 24, 0.65);
+    border-color: rgba(120, 200, 255, 0.6);
+    color: #e7f0ff;
+    background: rgba(10, 20, 45, 0.65);
 }
 
 body.fullscreen-open .winner-overlay-content {
@@ -905,13 +868,13 @@ body.fullscreen-open .winner-overlay-content::-webkit-scrollbar-thumb:hover {
 }
 
 body.fullscreen-open .drawer-toggle {
-    border-color: rgba(255, 214, 10, 0.55);
-    background: linear-gradient(160deg, rgba(199, 0, 47, 0.9), rgba(120, 0, 24, 0.85));
-    color: #ffe08a;
+    border-color: rgba(90, 190, 255, 0.55);
+    background: linear-gradient(160deg, rgba(10, 30, 55, 0.95), rgba(20, 55, 90, 0.95));
+    color: #cfe9ff;
 }
 
 body.fullscreen-open .drawer-toggle:hover {
-    background: linear-gradient(160deg, rgba(220, 20, 60, 0.92), rgba(140, 0, 30, 0.9));
+    background: linear-gradient(160deg, rgba(15, 40, 70, 0.98), rgba(30, 70, 110, 0.98));
 }
 
 body.drawer-open .drawer-toggle {
@@ -935,10 +898,10 @@ body.fullscreen-open.fullscreen-award-hidden .award-mini-toggle {
     height: 64px;
     padding: 0;
     border-radius: 18px 0 0 18px;
-    border: 1px solid rgba(255, 214, 10, 0.55);
+    border: 1px solid rgba(90, 190, 255, 0.55);
     border-right: none;
-    background: linear-gradient(160deg, rgba(120, 0, 24, 0.9), rgba(199, 0, 47, 0.95));
-    color: #ffe08a;
+    background: linear-gradient(160deg, rgba(10, 30, 55, 0.95), rgba(20, 55, 90, 0.95));
+    color: #cfe9ff;
     box-shadow: -6px 0 16px rgba(0, 0, 0, 0.35);
     align-items: center;
     justify-content: center;
@@ -947,7 +910,7 @@ body.fullscreen-open.fullscreen-award-hidden .award-mini-toggle {
 }
 
 body.fullscreen-open.fullscreen-award-hidden .award-mini-toggle:hover {
-    background: linear-gradient(160deg, rgba(140, 0, 30, 0.95), rgba(220, 20, 60, 0.95));
+    background: linear-gradient(160deg, rgba(15, 40, 70, 0.98), rgba(30, 70, 110, 0.98));
 }
 
 body.fullscreen-open.fullscreen-award-hidden .award-mini-backdrop {
@@ -974,9 +937,9 @@ body.fullscreen-open.fullscreen-award-hidden .award-mini-drawer {
     right: 0;
     width: 280px;
     max-height: calc(100vh - 160px);
-    background: rgba(30, 6, 10, 0.95);
+    background: rgba(8, 18, 34, 0.98);
     border-radius: 18px 0 0 18px;
-    border: 1px solid rgba(255, 214, 10, 0.4);
+    border: 1px solid rgba(90, 190, 255, 0.35);
     border-right: none;
     box-shadow: -20px 0 40px rgba(0, 0, 0, 0.45);
     transform: translateX(100%);
@@ -994,16 +957,16 @@ body.fullscreen-open.fullscreen-award-hidden.award-mini-open .award-mini-drawer 
     align-items: center;
     justify-content: space-between;
     padding: 12px 14px;
-    color: #ffe8a6;
+    color: #cfe9ff;
     font-size: 0.95rem;
     letter-spacing: 1px;
-    border-bottom: 1px solid rgba(255, 214, 10, 0.18);
+    border-bottom: 1px solid rgba(90, 190, 255, 0.18);
 }
 
 .award-mini-close {
     border: none;
     background: transparent;
-    color: #ffe08a;
+    color: #cfe9ff;
     font-size: 1rem;
     cursor: pointer;
 }
@@ -1027,17 +990,17 @@ body.fullscreen-open.fullscreen-award-hidden.award-mini-open .award-mini-drawer 
     gap: 8px;
     padding: 8px 10px;
     border-radius: 10px;
-    border: 1px solid rgba(255, 214, 10, 0.18);
-    background: rgba(80, 10, 20, 0.7);
-    color: #ffe7b2;
+    border: 1px solid rgba(90, 190, 255, 0.18);
+    background: rgba(12, 30, 55, 0.75);
+    color: #d9ecff;
     font-size: 0.85rem;
     cursor: pointer;
     text-align: left;
 }
 
 .award-mini-item.selected {
-    border-color: rgba(255, 214, 10, 0.65);
-    background: rgba(160, 20, 40, 0.8);
+    border-color: rgba(120, 200, 255, 0.65);
+    background: rgba(18, 50, 85, 0.9);
 }
 
 .award-mini-item.disabled {
@@ -1053,7 +1016,7 @@ body.fullscreen-open.fullscreen-award-hidden.award-mini-open .award-mini-drawer 
 }
 
 .award-mini-remaining {
-    color: rgba(255, 230, 180, 0.85);
+    color: rgba(185, 220, 255, 0.85);
     font-size: 0.8rem;
     white-space: nowrap;
 }
@@ -1432,6 +1395,14 @@ body.fullscreen-open .inline-result-section {
     animation: coreGlow 3s ease-in-out infinite alternate;
 }
 
+body.fullscreen-open .globe::before {
+    background: radial-gradient(circle at center,
+        rgba(120, 220, 255, 0.18) 0%,
+        rgba(60, 140, 255, 0.08) 35%,
+        transparent 70%);
+    opacity: 0.9;
+}
+
 @keyframes coreGlow {
     from {
         transform: scale(0.9);
@@ -1532,12 +1503,12 @@ body.fullscreen-open .globe-name:hover {
 }
 
 body.fullscreen-open .globe-name.boss-name {
-    color: #ffe08a;
-    background: rgba(10, 35, 55, 0.75);
-    border-color: rgba(255, 214, 10, 0.8);
+    color: #ffd966;
+    background: rgba(10, 30, 50, 0.85);
+    border-color: rgba(255, 214, 10, 0.85);
     box-shadow:
-        0 0 16px rgba(255, 214, 10, 0.45),
-        0 0 30px rgba(0, 120, 255, 0.35),
+        0 0 18px rgba(255, 214, 10, 0.5),
+        0 0 32px rgba(0, 120, 255, 0.35),
         inset 0 0 14px rgba(255, 214, 10, 0.2);
     text-shadow: 0 0 12px rgba(255, 214, 10, 0.75);
 }
