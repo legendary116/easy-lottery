@@ -4,8 +4,10 @@ let winners = [];
 let currentLottery = null;
 let isLotteryRunning = false;
 let lotteryInterval = null;
-let bossKeepInPool = true; // 老板中奖后是否留在抽奖池
+let bossKeepInPool = false; // 老板中奖后是否留在抽奖池
 let requireNumber = false; // 是否要求录入号码
+let hideFullscreenAwardList = true; // 是否隐藏大屏右侧奖项列表
+let fullscreenTitle = ''; // 大屏标题
 let autoStopEnabled = false; // 是否自动停止
 let autoStopDuration = 5; // 自动停止时长（秒）
 let autoStopTimer = null; // 自动停止定时器
@@ -17,7 +19,8 @@ let currentSpinAxis = { x: 0, y: 1, z: 0 };
 let currentSpinDuration = 30;
 const GLOBE_RADIUS = 210;
 const FULLSCREEN_GLOBE_RADIUS = 260;
-const DEFAULT_WINNER_REVEAL_DURATION = 10;
+const FULLSCREEN_GLOBE_RATIO = 0.8;
+const DEFAULT_WINNER_REVEAL_DURATION = 1;
 const DEFAULT_MULTI_REVEAL_DELAY = 1;
 
 // 鼠标拖动旋转相关变量
@@ -44,6 +47,8 @@ let winnerMultiDelay = DEFAULT_MULTI_REVEAL_DELAY;
 
 const LANG_STORAGE_KEY = 'lotteryLang';
 const NUMBER_REQUIRED_KEY = 'lotteryNumberRequired';
+const HIDE_FULLSCREEN_AWARD_KEY = 'lotteryHideFullscreenAwardList';
+const FULLSCREEN_TITLE_KEY = 'lotteryFullscreenTitle';
 let currentLang = localStorage.getItem(LANG_STORAGE_KEY) || null;
 
 function t(key, vars = {}) {
@@ -90,6 +95,7 @@ function applyI18n() {
     renderAwards();
     updateStatsPage();
     applyNumberRequirement({ rerender: false });
+    applyFullscreenTitle();
 }
 
 function applyWinnerAnimationSettings() {
@@ -97,6 +103,13 @@ function applyWinnerAnimationSettings() {
     root.style.setProperty('--winner-reveal-duration', `${winnerRevealDuration}s`);
     root.style.setProperty('--winner-multi-duration', `${winnerRevealDuration}s`);
     root.style.setProperty('--winner-multi-delay', `${winnerMultiDelay}s`);
+}
+
+function ensureFullscreenIfRunning() {
+    if (!isLotteryRunning) return;
+    if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+    }
 }
 
 function clearNumberData(options = {}) {
@@ -144,6 +157,24 @@ function applyNumberRequirement(options = {}) {
 
     if (rerender) {
         updateTables();
+    }
+}
+
+function applyFullscreenAwardListVisibility() {
+    $('body').toggleClass('fullscreen-award-hidden', hideFullscreenAwardList);
+    if (!hideFullscreenAwardList) {
+        $('body').removeClass('award-mini-open');
+    }
+}
+
+function applyFullscreenTitle() {
+    const title = (fullscreenTitle || '').trim();
+    const fallback = t('app_title');
+    $('#fullscreenTitle').text(title || fallback);
+    const input = $('#fullscreenTitleInput');
+    if (input.length) {
+        input.val(title);
+        input.attr('placeholder', fallback);
     }
 }
 
@@ -253,6 +284,12 @@ $(document).ready(function() {
             $('#awardPanel').addClass('show-selected');
         }
     });
+    $('#awardMiniList').on('click', '.award-mini-item', function() {
+        if (isLotteryRunning) return;
+        if ($(this).hasClass('disabled')) return;
+        selectAward(Number($(this).data('id')));
+        $('body').removeClass('award-mini-open');
+    });
     $('#bossKeepInPool').change(function() {
         bossKeepInPool = $(this).is(':checked');
         localStorage.setItem('bossKeepInPool', bossKeepInPool);
@@ -268,6 +305,17 @@ $(document).ready(function() {
         }
         applyNumberRequirement();
         showAlert(t('settings_saved'), 'success');
+    });
+    $('#hideFullscreenAwardList').change(function() {
+        hideFullscreenAwardList = $(this).is(':checked');
+        localStorage.setItem(HIDE_FULLSCREEN_AWARD_KEY, hideFullscreenAwardList);
+        applyFullscreenAwardListVisibility();
+        showAlert(t('settings_saved'), 'success');
+    });
+    $('#fullscreenTitleInput').on('input', function() {
+        fullscreenTitle = $(this).val();
+        localStorage.setItem(FULLSCREEN_TITLE_KEY, fullscreenTitle);
+        applyFullscreenTitle();
     });
     $('#autoStopEnabled').change(function() {
         autoStopEnabled = $(this).is(':checked');
@@ -305,6 +353,15 @@ $(document).ready(function() {
     $('#drawerBackdrop').on('click', function() {
         $('body').removeClass('drawer-open');
     });
+    $('#awardMiniToggle').on('click', function() {
+        $('body').toggleClass('award-mini-open');
+    });
+    $('#awardMiniClose').on('click', function() {
+        $('body').removeClass('award-mini-open');
+    });
+    $('#awardMiniBackdrop').on('click', function() {
+        $('body').removeClass('award-mini-open');
+    });
 
     $('button[data-bs-toggle="tab"]').on('shown.bs.tab', function(e) {
         const target = $(e.target).attr('data-bs-target');
@@ -323,12 +380,26 @@ $(document).ready(function() {
     $('#fullscreenToggle').on('click', function() {
         if (!document.fullscreenElement) {
             document.documentElement.requestFullscreen().catch(() => {});
-        } else {
-            document.exitFullscreen();
+            return;
         }
+        if (isLotteryRunning) {
+            showAlert(t('fullscreen_exit_blocked'), 'warning');
+            return;
+        }
+        document.exitFullscreen();
     });
 
-    document.addEventListener('fullscreenchange', updateFullscreenState);
+    document.addEventListener('fullscreenchange', function() {
+        updateFullscreenState();
+        ensureFullscreenIfRunning();
+    });
+    document.addEventListener('keydown', function(e) {
+        if (isLotteryRunning && (e.key === 'Escape' || e.key === 'Esc')) {
+            e.preventDefault();
+            e.stopPropagation();
+            showAlert(t('fullscreen_exit_blocked'), 'warning');
+        }
+    }, true);
     updateFullscreenState();
 
     $('#languageSelect').on('change', function() {
@@ -340,6 +411,9 @@ $(document).ready(function() {
     $('#exportWinnersBtn').on('click', function() {
         exportWinnersToExcel();
     });
+    $('#exportUnwonBtn').on('click', function() {
+        exportUnwonToExcel();
+    });
 
     $('#winnerOverlayClose').on('click', function() {
         $('body').removeClass('winner-show');
@@ -348,6 +422,13 @@ $(document).ready(function() {
     $('#winnerOverlayBackdrop').on('click', function() {
         $('body').removeClass('winner-show');
     });
+
+    const companyLogo = $('#companyLogo');
+    if (companyLogo.length) {
+        companyLogo.on('error', function() {
+            $(this).hide();
+        });
+    }
 
     applyI18n();
     applyWinnerAnimationSettings();
@@ -359,6 +440,8 @@ function loadData() {
     winners = JSON.parse(localStorage.getItem('lotteryWinners')) || [];
     bossKeepInPool = localStorage.getItem('bossKeepInPool') !== 'false'; // 默认为true
     requireNumber = localStorage.getItem(NUMBER_REQUIRED_KEY) === 'true'; // 默认为false
+    hideFullscreenAwardList = localStorage.getItem(HIDE_FULLSCREEN_AWARD_KEY) === 'true';
+    fullscreenTitle = localStorage.getItem(FULLSCREEN_TITLE_KEY) || '';
     autoStopEnabled = localStorage.getItem('autoStopEnabled') === 'true';
     autoStopDuration = parseInt(localStorage.getItem('autoStopDuration')) || 5;
     const savedRevealDuration = parseFloat(localStorage.getItem('winnerRevealDuration'));
@@ -604,6 +687,77 @@ function updateStatsPage() {
         tr.append($('<td></td>').text(winner.winTime || '-'));
         winnerTable.append(tr);
     });
+
+    const unwonTable = $('#statsUnwonTable');
+    if (unwonTable.length) {
+        unwonTable.empty();
+        const remainingUsers = users.filter(user => {
+            const isWinner = winners.some(winner => winner.id === user.id);
+            if (bossKeepInPool && user.type === 'boss') {
+                return true;
+            }
+            return !isWinner;
+        });
+        remainingUsers.forEach((user, index) => {
+            const tr = $('<tr></tr>');
+            tr.append($('<td></td>').text(index + 1));
+            tr.append($('<td></td>').text(user.name));
+            if (requireNumber) {
+                tr.append($('<td data-number-field="true"></td>').text(user.number));
+            }
+            const typeLabel = user.type === 'boss' ? t('type_boss') : t('type_user');
+            tr.append($('<td></td>').text(typeLabel));
+            unwonTable.append(tr);
+        });
+    }
+}
+
+function exportUnwonToExcel() {
+    const remainingUsers = users.filter(user => {
+        const isWinner = winners.some(winner => winner.id === user.id);
+        if (bossKeepInPool && user.type === 'boss') {
+            return true;
+        }
+        return !isWinner;
+    });
+
+    if (remainingUsers.length === 0) {
+        alert(t('no_unwon_to_export'));
+        return;
+    }
+
+    const headers = [
+        t('table_index'),
+        t('table_name')
+    ];
+    if (requireNumber) {
+        headers.push(t('table_number'));
+    }
+    headers.push(t('table_type'));
+
+    const data = remainingUsers.map((user, index) => {
+        const typeLabel = user.type === 'boss' ? t('type_boss') : t('type_user');
+        const row = [
+            index + 1,
+            user.name
+        ];
+        if (requireNumber) {
+            row.push(user.number);
+        }
+        row.push(typeLabel);
+        return row;
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, t('stats_unwon_list'));
+
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
+    const fileName = `未中奖名单_${dateStr}_${timeStr}.xlsx`;
+
+    XLSX.writeFile(wb, fileName);
 }
 
 function exportWinnersToExcel() {
@@ -757,6 +911,7 @@ function renderAwards() {
     }
     const list = $('#awardList');
     const manageList = $('#awardManageList');
+    const miniList = $('#awardMiniList');
     if (list.length) {
         list.empty();
         if (awards.length === 0) {
@@ -849,6 +1004,25 @@ function renderAwards() {
                 `);
                 item.find('select[data-action="award-preset"]').val(presetValue);
                 manageList.append(item);
+            });
+        }
+    }
+
+    if (miniList.length) {
+        miniList.empty();
+        if (awards.length === 0) {
+            miniList.append(`<div class="text-muted">${t('award_empty')}</div>`);
+        } else {
+            awards.forEach((award) => {
+                const isSelected = award.id === selectedAwardId;
+                const isDisabled = award.remaining <= 0 || award.perDraw <= 0 || award.remaining < award.perDraw;
+                const item = $(`
+                    <button class="award-mini-item ${isSelected ? 'selected' : ''} ${isDisabled ? 'disabled' : ''}" data-id="${award.id}" type="button">
+                        <span class="award-mini-name">${award.name}</span>
+                        <span class="award-mini-remaining">${t('award_remaining')} ${award.remaining}</span>
+                    </button>
+                `);
+                miniList.append(item);
             });
         }
     }
@@ -956,7 +1130,14 @@ function deleteAward(awardId) {
 }
 
 function getGlobeRadius() {
-    return document.fullscreenElement ? FULLSCREEN_GLOBE_RADIUS : GLOBE_RADIUS;
+    if (!document.fullscreenElement) {
+        return GLOBE_RADIUS;
+    }
+    const heightBased = window.innerHeight * FULLSCREEN_GLOBE_RATIO;
+    const widthBased = window.innerWidth * FULLSCREEN_GLOBE_RATIO;
+    const size = Math.min(heightBased, widthBased);
+    const radius = Math.max(180, size / 2 - 10);
+    return Number.isFinite(radius) ? radius : FULLSCREEN_GLOBE_RADIUS;
 }
 
 function updateFullscreenState() {
@@ -1599,6 +1780,10 @@ function startLottery() {
         console.log(t('lottery_running_ignore'));
         return;
     }
+    if (!document.fullscreenElement) {
+        showAlert(t('fullscreen_required'), 'warning');
+        return;
+    }
     if (recreateGlobeTimer) {
         clearTimeout(recreateGlobeTimer);
         recreateGlobeTimer = null;
@@ -1754,9 +1939,11 @@ function stopLottery() {
     
     $('#winnerAwardName').text(drawAward.name || '-');
     $('#winnerAwardPrize').text(drawAward.prize || '-');
+    $('#winnerAwardImage').attr('src', getAwardImageSrc(drawAward));
     
     pickedUsers.forEach((winner, index) => {
-        const delay = (index * winnerMultiDelay).toFixed(2);
+        const step = Math.max(0, winnerRevealDuration) + Math.max(0, winnerMultiDelay);
+        const delay = (index * step).toFixed(2);
         const numberHtml = requireNumber
             ? `<div class="winner-number" data-number-field="true">${winner.number}</div>`
             : '';
@@ -1896,12 +2083,15 @@ function clearData() {
 function syncSettingsUI() {
     $('#bossKeepInPool').prop('checked', bossKeepInPool);
     $('#numberRequiredToggle').prop('checked', requireNumber);
+    $('#hideFullscreenAwardList').prop('checked', hideFullscreenAwardList);
     $('#autoStopEnabled').prop('checked', autoStopEnabled);
     $('#autoStopDuration').val(autoStopDuration);
     $('#autoStopDurationContainer').toggle(autoStopEnabled);
     $('#winnerRevealDuration').val(winnerRevealDuration);
     $('#winnerMultiDelay').val(winnerMultiDelay);
     applyNumberRequirement({ rerender: false });
+    applyFullscreenAwardListVisibility();
+    applyFullscreenTitle();
 }
 
 // 显示提示
