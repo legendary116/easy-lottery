@@ -757,12 +757,12 @@ body.fullscreen-open .winner-overlay-title {
 }
 
 body.fullscreen-open .winner-overlay-award-name {
-    font-size: 3.5rem;
+    font-size: 5rem;
     color: #ffd166;
 }
 
 body.fullscreen-open .winner-overlay-award-prize {
-    font-size: 2.5rem;
+    font-size: 5rem;
     color: #f4b942;
 }
 

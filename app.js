@@ -338,6 +338,14 @@ $(document).ready(function() {
         };
         reader.readAsDataURL(file);
     });
+    $('#awardManageList').on('change', 'input[data-action="award-show-image"]', function() {
+        const awardId = Number($(this).closest('.award-manage-item').data('id'));
+        const award = awards.find((item) => item.id === awardId);
+        if (!award) return;
+        award.showImage = $(this).is(':checked');
+        renderAwards();
+        updateStatsPage();
+    });
     $('#awardManageList').on('click', '[data-action="award-inc"]', function() {
         const item = $(this).closest('.award-manage-item');
         adjustAwardValue(Number(item.data('id')), $(this).data('field'), 1);
@@ -937,6 +945,7 @@ function normalizeAward(award) {
     const imageType = award.imageType === 'custom' && award.imageData ? 'custom' : 'preset';
     const imagePreset = award.imagePreset || DEFAULT_AWARD_IMAGE;
     const imageData = award.imageData || null;
+    const showImage = award.showImage !== false;
     return {
         ...award,
         total,
@@ -944,7 +953,8 @@ function normalizeAward(award) {
         remaining: Math.max(0, remaining),
         imageType,
         imagePreset,
-        imageData
+        imageData,
+        showImage
     };
 }
 
@@ -1053,6 +1063,12 @@ function renderAwards() {
                                             <label class="form-label mb-1">${t('award_image_upload')}</label>
                                             <input type="file" class="form-control form-control-sm" data-action="award-upload" accept="image/*">
                                         </div>
+                                        <div class="award-manage-upload-item">
+                                            <label class="form-label mb-1">${t('award_show_image')}</label>
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" data-action="award-show-image">
+                                            </div>
+                                        </div>
                                     </div>
                                     <div class="award-manage-controls">
                                         <div class="award-manage-control-labels">
@@ -1081,6 +1097,7 @@ function renderAwards() {
                     </div>
                 `);
                 item.find('select[data-action="award-preset"]').val(presetValue);
+                item.find('input[data-action="award-show-image"]').prop('checked', award.showImage !== false);
                 manageList.append(item);
             });
         }
@@ -1140,7 +1157,8 @@ function addAward(e) {
         remaining: total,
         imageType,
         imagePreset,
-        imageData
+        imageData,
+        showImage: true
     });
     awards.push(award);
     if (!selectedAwardId) {
@@ -2037,6 +2055,8 @@ function stopLottery() {
     $('#winnerAwardName').text(drawAward.name || '-');
     $('#winnerAwardPrize').text(drawAward.prize || '-');
     $('#winnerAwardImage').attr('src', getAwardImageSrc(drawAward));
+    const showWinnerImage = drawAward.showImage !== false;
+    $('#winnerAwardImage').closest('.winner-overlay-award-image').toggle(showWinnerImage);
     
     pickedUsers.forEach((winner, index) => {
         const step = Math.max(0, winnerRevealDuration) + Math.max(0, winnerMultiDelay);
